@@ -1,0 +1,364 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/constants/portfolio_data.dart';
+import '../../core/models/project_model.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../utils/responsive_layout.dart';
+import '../../services/firebase_providers.dart';
+import '../../core/widgets/gradient_button.dart';
+import 'add_project_dialog.dart';
+
+class ProjectsSection extends ConsumerWidget {
+  final GlobalKey sectionKey;
+  const ProjectsSection({super.key, required this.sectionKey});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isMobile = Responsive.isMobile(context);
+    final isTablet = Responsive.isTablet(context);
+
+    final projectsAsync = ref.watch(projectsStreamProvider);
+    final authState = ref.watch(authStateProvider);
+    final isLoggedIn = authState.value != null;
+
+    return Container(
+      key: sectionKey,
+      color: AppColors.bgPrimary,
+      child: SectionWrapper(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Expanded(
+                  child: _SectionHeader(
+                    label: '// my work',
+                    title: 'Projects',
+                    subtitle: 'A selection of projects that showcase my skills in Flutter development, system design, and UX thinking.',
+                  ),
+                ),
+                if (isLoggedIn)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: GradientButton(
+                      label: 'Add Project',
+                      icon: Icons.add,
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const AddProjectDialog(),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 48),
+            projectsAsync.when(
+              data: (projectsList) {
+                // Fallback to local portfolio data if Firestore collection is empty
+                final displayProjects = projectsList.isEmpty ? PortfolioData.projects : projectsList;
+                
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
+                    crossAxisSpacing: 24,
+                    mainAxisSpacing: 24,
+                  childAspectRatio: isMobile ? 1.0 : (isTablet ? 1.0 : 1.0),
+                  ),
+                  itemCount: displayProjects.length,
+                  itemBuilder: (ctx, i) => _ProjectCard(
+                    project: displayProjects[i],
+                    onTap: () => context.push('/project/${displayProjects[i].id}'),
+                  ),
+                );
+              },
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(48.0),
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
+                  ),
+                ),
+              ),
+              error: (err, stack) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Text(
+                    'Error loading projects: $err',
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProjectCard extends StatefulWidget {
+  final ProjectModel project;
+  final VoidCallback onTap;
+  const _ProjectCard({required this.project, required this.onTap});
+
+  @override
+  State<_ProjectCard> createState() => _ProjectCardState();
+}
+
+class _ProjectCardState extends State<_ProjectCard> {
+  bool _hovered = false;
+  bool _visible = false;
+
+  Color get _accentColor {
+    try {
+      final hex = widget.project.accentColorHex.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return AppColors.accentCyan;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return VisibilityDetector(
+      key: Key('project-${widget.project.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0.1 && !_visible) {
+          setState(() => _visible = true);
+        }
+      },
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 400),
+        opacity: _visible ? 1.0 : 0.0,
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 400),
+          offset: _visible ? Offset.zero : const Offset(0, 0.1),
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: widget.onTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                decoration: BoxDecoration(
+                  gradient: AppColors.cardGradient,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _hovered ? _accentColor.withOpacity(0.6) : AppColors.border,
+                    width: 1,
+                  ),
+                  boxShadow: _hovered
+                      ? [
+                          BoxShadow(
+                            color: _accentColor.withOpacity(0.15),
+                            blurRadius: 30,
+                            offset: const Offset(0, 8),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.project.imageUrl.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        child: Image.network(
+                          widget.project.imageUrl,
+                          width: double.infinity,
+                          height: 150,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [_accentColor, _accentColor.withValues(alpha: 0.4)],
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          gradient: LinearGradient(
+                            colors: [_accentColor, _accentColor.withValues(alpha: 0.4)],
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Icon + category
+                            Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: _accentColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: _accentColor.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _getIcon(widget.project.category),
+                                    color: _accentColor,
+                                    size: 22,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bgPrimary,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(widget.project.category,
+                                      style: AppTextStyles.labelMedium),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Title
+                            Text(widget.project.title,
+                                style: AppTextStyles.headlineSmall.copyWith(fontSize: 18),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 8),
+
+                            // Tagline
+                            Text(widget.project.tagline,
+                                style: AppTextStyles.bodyMedium,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
+
+                            const Spacer(),
+
+                            // Tools chips
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: (widget.project.tools.isNotEmpty ? widget.project.tools : widget.project.techStack)
+                                  .take(3)
+                                  .map((t) => _TechChip(label: t, color: _accentColor))
+                                  .toList(),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // View Details button
+                            Row(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Text(
+                                    'View Details',
+                                    style: AppTextStyles.labelLarge.copyWith(
+                                      color: _hovered ? _accentColor : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  transform: Matrix4.translationValues(
+                                    _hovered ? 4 : 0, 0, 0),
+                                  child: Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 16,
+                                    color: _hovered ? _accentColor : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getIcon(String category) {
+    switch (category) {
+      case 'Enterprise': return Icons.business_rounded;
+      case 'Mobile App': return Icons.smartphone_rounded;
+      case 'E-Commerce': return Icons.shopping_bag_rounded;
+      case 'Health & Fitness': return Icons.fitness_center_rounded;
+      case 'Productivity': return Icons.task_alt_rounded;
+      default: return Icons.code_rounded;
+    }
+  }
+}
+
+class _TechChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _TechChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Text(label,
+          style: AppTextStyles.labelMedium.copyWith(
+            color: color.withOpacity(0.9),
+            fontSize: 11,
+          )),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final String title;
+  final String subtitle;
+  const _SectionHeader({required this.label, required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.codeStyle),
+        const SizedBox(height: 8),
+        Text(title, style: AppTextStyles.headlineLarge),
+        const SizedBox(height: 12),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Text(subtitle, style: AppTextStyles.bodyLarge),
+        ),
+      ],
+    );
+  }
+}
