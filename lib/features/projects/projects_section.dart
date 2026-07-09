@@ -62,54 +62,61 @@ class ProjectsSection extends ConsumerWidget {
             const SizedBox(height: 48),
             projectsAsync.when(
               data: (projectsList) {
-                // Fallback to local portfolio data if Firestore collection is empty
                 final displayProjects = projectsList.isEmpty ? PortfolioData.projects : projectsList;
-                
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
-                    crossAxisSpacing: 24,
-                    mainAxisSpacing: 24,
-                  childAspectRatio: isMobile ? 1.0 : (isTablet ? 1.0 : 1.0),
-                  ),
-                  itemCount: displayProjects.length,
-                  itemBuilder: (ctx, i) => _ProjectCard(
-                    project: displayProjects[i],
-                    onTap: () => context.push('/project/${displayProjects[i].id}'),
-                  ),
-                );
+                return _buildGrid(context, displayProjects, isLoggedIn, isMobile, isTablet);
               },
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(48.0),
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
-                  ),
-                ),
-              ),
-              error: (err, stack) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
-                  child: Text(
-                    'Error loading projects: $err',
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
-              ),
+              loading: () => _buildGrid(context, PortfolioData.projects, isLoggedIn, isMobile, isTablet),
+              error: (err, stack) => _buildGrid(context, PortfolioData.projects, isLoggedIn, isMobile, isTablet),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildGrid(BuildContext context, List<ProjectModel> displayProjects, bool isLoggedIn, bool isMobile, bool isTablet) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
+        crossAxisSpacing: 24,
+        mainAxisSpacing: 24,
+        mainAxisExtent: 380,
+      ),
+      itemCount: displayProjects.length,
+      itemBuilder: (ctx, i) => _ProjectCard(
+        project: displayProjects[i],
+        isAdmin: isLoggedIn,
+        onTap: () => context.push('/project/${displayProjects[i].id}'),
+        onEdit: isLoggedIn
+            ? () => showDialog(
+                  context: context,
+                  builder: (_) => AddProjectDialog(
+                    project: displayProjects[i],
+                  ),
+                )
+            : null,
+      ),
+    );
+  }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Project Card
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ProjectCard extends StatefulWidget {
   final ProjectModel project;
   final VoidCallback onTap;
-  const _ProjectCard({required this.project, required this.onTap});
+  final VoidCallback? onEdit;
+  final bool isAdmin;
+  const _ProjectCard({
+    required this.project,
+    required this.onTap,
+    this.onEdit,
+    this.isAdmin = false,
+  });
 
   @override
   State<_ProjectCard> createState() => _ProjectCardState();
@@ -117,6 +124,8 @@ class _ProjectCard extends StatefulWidget {
 
 class _ProjectCardState extends State<_ProjectCard> {
   bool _hovered = false;
+  // _visible resets to false when card fully leaves viewport so the
+  // enter-animation fires symmetrically on BOTH scroll directions.
   bool _visible = false;
 
   Color get _accentColor {
@@ -133,8 +142,13 @@ class _ProjectCardState extends State<_ProjectCard> {
     return VisibilityDetector(
       key: Key('project-${widget.project.id}'),
       onVisibilityChanged: (info) {
+        if (!mounted) return;
         if (info.visibleFraction > 0.1 && !_visible) {
+          // Card entered viewport — trigger the enter animation
           setState(() => _visible = true);
+        } else if (info.visibleFraction == 0 && _visible) {
+          // Card fully left viewport — reset so animation re-fires on re-entry
+          setState(() => _visible = false);
         }
       },
       child: AnimatedOpacity(
@@ -142,7 +156,7 @@ class _ProjectCardState extends State<_ProjectCard> {
         opacity: _visible ? 1.0 : 0.0,
         child: AnimatedSlide(
           duration: const Duration(milliseconds: 400),
-          offset: _visible ? Offset.zero : const Offset(0, 0.1),
+          offset: _visible ? Offset.zero : const Offset(0, 0.08),
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
@@ -155,13 +169,13 @@ class _ProjectCardState extends State<_ProjectCard> {
                   gradient: AppColors.cardGradient,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _hovered ? _accentColor.withOpacity(0.6) : AppColors.border,
+                    color: _hovered ? _accentColor.withValues(alpha: 0.6) : AppColors.border,
                     width: 1,
                   ),
                   boxShadow: _hovered
                       ? [
                           BoxShadow(
-                            color: _accentColor.withOpacity(0.15),
+                            color: _accentColor.withValues(alpha: 0.15),
                             blurRadius: 30,
                             offset: const Offset(0, 8),
                           )
@@ -171,23 +185,36 @@ class _ProjectCardState extends State<_ProjectCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Top image / accent bar ────────────────────────────
                     if (widget.project.imageUrl.isNotEmpty)
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                        child: Image.network(
-                          widget.project.imageUrl,
-                          width: double.infinity,
-                          height: 150,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: 4,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [_accentColor, _accentColor.withValues(alpha: 0.4)],
+                        child: widget.project.imageUrl.startsWith('http')
+                            ? Image.network(
+                                widget.project.imageUrl,
+                                width: double.infinity,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [_accentColor, _accentColor.withValues(alpha: 0.4)],
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Image.asset(
+                                widget.project.imageUrl,
+                                width: double.infinity,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  height: 120,
+                                  color: _accentColor.withValues(alpha: 0.08),
+                                  child: Center(child: Icon(Icons.image_rounded, color: _accentColor, size: 40)),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
                       )
                     else
                       Container(
@@ -199,23 +226,25 @@ class _ProjectCardState extends State<_ProjectCard> {
                           ),
                         ),
                       ),
+
+                    // ── Card body ─────────────────────────────────────────
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Icon + category
+                            // Icon + category badge
                             Row(
                               children: [
                                 Container(
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: _accentColor.withOpacity(0.1),
+                                    color: _accentColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
-                                      color: _accentColor.withOpacity(0.3),
+                                      color: _accentColor.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   child: Icon(
@@ -231,63 +260,89 @@ class _ProjectCardState extends State<_ProjectCard> {
                                     color: AppColors.bgPrimary,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: Text(widget.project.category,
-                                      style: AppTextStyles.labelMedium),
+                                  child: Text(widget.project.category, style: AppTextStyles.labelMedium),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 10),
 
                             // Title
-                            Text(widget.project.title,
-                                style: AppTextStyles.headlineSmall.copyWith(fontSize: 18),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 8),
+                            Text(
+                              widget.project.title,
+                              style: AppTextStyles.headlineSmall.copyWith(fontSize: 18),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
 
                             // Tagline
-                            Text(widget.project.tagline,
-                                style: AppTextStyles.bodyMedium,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            Text(
+                              widget.project.tagline,
+                              style: AppTextStyles.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
 
                             const Spacer(),
 
-                            // Tools chips
+                            // Tech chip row
                             Wrap(
                               spacing: 6,
                               runSpacing: 6,
-                              children: (widget.project.tools.isNotEmpty ? widget.project.tools : widget.project.techStack)
+                              children: (widget.project.tools.isNotEmpty
+                                      ? widget.project.tools
+                                      : widget.project.techStack)
                                   .take(3)
                                   .map((t) => _TechChip(label: t, color: _accentColor))
                                   .toList(),
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 10),
 
-                            // View Details button
+                            // View Details row
                             Row(
                               children: [
-                                AnimatedContainer(
+                                AnimatedDefaultTextStyle(
                                   duration: const Duration(milliseconds: 200),
-                                  child: Text(
-                                    'View Details',
-                                    style: AppTextStyles.labelLarge.copyWith(
-                                      color: _hovered ? _accentColor : AppColors.textSecondary,
-                                    ),
+                                  style: AppTextStyles.labelLarge.copyWith(
+                                    color: _hovered ? _accentColor : AppColors.textSecondary,
                                   ),
+                                  child: const Text('View Details'),
                                 ),
                                 const SizedBox(width: 6),
                                 AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  transform: Matrix4.translationValues(
-                                    _hovered ? 4 : 0, 0, 0),
+                                  transform: Matrix4.translationValues(_hovered ? 4 : 0, 0, 0),
                                   child: Icon(
                                     Icons.arrow_forward_rounded,
                                     size: 16,
                                     color: _hovered ? _accentColor : AppColors.textSecondary,
                                   ),
                                 ),
+                                if (widget.isAdmin) ...[
+                                  const Spacer(),
+                                  GestureDetector(
+                                    onTap: widget.onEdit,
+                                    child: MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: _hovered
+                                              ? _accentColor.withValues(alpha: 0.15)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Icon(
+                                          Icons.edit_outlined,
+                                          size: 16,
+                                          color: _hovered ? _accentColor : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -306,15 +361,25 @@ class _ProjectCardState extends State<_ProjectCard> {
 
   IconData _getIcon(String category) {
     switch (category) {
-      case 'Enterprise': return Icons.business_rounded;
-      case 'Mobile App': return Icons.smartphone_rounded;
-      case 'E-Commerce': return Icons.shopping_bag_rounded;
-      case 'Health & Fitness': return Icons.fitness_center_rounded;
-      case 'Productivity': return Icons.task_alt_rounded;
-      default: return Icons.code_rounded;
+      case 'Enterprise':
+        return Icons.business_rounded;
+      case 'Mobile App':
+        return Icons.smartphone_rounded;
+      case 'E-Commerce':
+        return Icons.shopping_bag_rounded;
+      case 'Health & Fitness':
+        return Icons.fitness_center_rounded;
+      case 'Productivity':
+        return Icons.task_alt_rounded;
+      default:
+        return Icons.code_rounded;
     }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tech Chip
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TechChip extends StatelessWidget {
   final String label;
@@ -326,18 +391,24 @@ class _TechChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
-      child: Text(label,
-          style: AppTextStyles.labelMedium.copyWith(
-            color: color.withOpacity(0.9),
-            fontSize: 11,
-          )),
+      child: Text(
+        label,
+        style: AppTextStyles.labelMedium.copyWith(
+          color: color.withValues(alpha: 0.9),
+          fontSize: 11,
+        ),
+      ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section Header
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String label;

@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/gradient_button.dart';
-import '../../services/supabase_storage_service.dart';
 import '../../services/firebase_providers.dart';
 import '../../utils/responsive_layout.dart';
 
@@ -111,20 +108,66 @@ class _MobileHeroContent extends StatelessWidget {
   }
 }
 
-class _HeroText extends ConsumerWidget {
+class _HeroText extends ConsumerStatefulWidget {
   final VoidCallback onViewWork;
   const _HeroText({required this.onViewWork});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HeroText> createState() => _HeroTextState();
+}
+
+class _HeroTextState extends ConsumerState<_HeroText> {
+  String? _cvFileName;
+
+  Future<void> _handleCvAction(BuildContext context, String? cvUrl) async {
+    // If there's a remote URL, launch it
+    if (cvUrl != null && cvUrl.isNotEmpty && cvUrl.startsWith('http')) {
+      final uri = Uri.parse(cvUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+
+    // Open the bundled local asset PDF
+    if (kIsWeb) {
+      // Build absolute URL from the current page base so browser can open it
+      final base = Uri.base;
+      final cvUri = Uri(
+        scheme: base.scheme,
+        host: base.host,
+        port: base.port,
+        path: '${base.path.endsWith('/') ? base.path : '${base.path}/'}assets/CV/Flutter_CV.pdf',
+      );
+      try {
+        await launchUrl(cvUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open CV. Try again later.')),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CV is only viewable on the web version.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
-    final projectsCount = ref.watch(projectsStreamProvider).value?.length ?? 0;
     final personalInfo = ref.watch(personalInfoStreamProvider).value ?? {};
-    final authState = ref.watch(authStateProvider);
-    final bool isAdmin = authState.value != null;
     final String? cvUrl = (personalInfo['cvUrl'] ?? '').toString().isEmpty
         ? null
         : personalInfo['cvUrl'].toString();
+    final String storedCvFileName =
+        (personalInfo['cvFileName'] ?? '').toString();
+    final String displayCvName =
+        _cvFileName ?? (storedCvFileName.isNotEmpty ? storedCvFileName : '');
 
     return Column(
       crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -167,37 +210,28 @@ class _HeroText extends ConsumerWidget {
           ),
         ).animate().fadeIn(delay: 400.ms, duration: 700.ms).slideY(begin: 0.3, end: 0),
 
-        const SizedBox(height: 12),
-
-        // Fixed role
-        Row(
-          mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
-          children: [
-            Text('A ', style: AppTextStyles.headlineMedium.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: isMobile ? 20 : 28,
-            )),
-            Text(
-              'Flutter & Dart Specialist',
-              style: AppTextStyles.headlineMedium.copyWith(
-                color: AppColors.accentCyan,
-                fontSize: isMobile ? 20 : 28,
-              ),
-            ),
-          ],
+        const SizedBox(height: 12),        // Tagline / Role
+        Text(
+          'Flutter Developer | Cross-Platform Mobile App Developer',
+          style: AppTextStyles.headlineMedium.copyWith(
+            color: AppColors.accentCyan,
+            fontSize: isMobile ? 18 : 26,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: isMobile ? TextAlign.center : TextAlign.left,
         ).animate().fadeIn(delay: 600.ms, duration: 700.ms),
 
         const SizedBox(height: 24),
 
-        // Bio
+        // Subtext / Bio
         Text(
-          'I build beautiful, performant Flutter apps that run everywhere —\nmobile, web, and desktop. Clean code. Elegant design. Real results.',
+          'Developing high-performance cross-platform mobile app development solutions using Dart and the Flutter framework. Specialized in state management (Riverpod/Provider), Firebase backend systems, and REST API integration, focusing on UI/UX excellence, clean architecture, and performance optimization.',
           style: AppTextStyles.bodyLarge.copyWith(
             fontSize: isMobile ? 14 : 16,
+            height: 1.5,
           ),
           textAlign: isMobile ? TextAlign.center : TextAlign.left,
         ).animate().fadeIn(delay: 800.ms, duration: 700.ms),
-
         const SizedBox(height: 40),
 
         // CTAs
@@ -209,80 +243,19 @@ class _HeroText extends ConsumerWidget {
             GradientButton(
               label: 'View My Work',
               icon: Icons.arrow_downward_rounded,
-              onPressed: onViewWork,
+              onPressed: widget.onViewWork,
             ),
-            // CV button — always shown; admin can upload, visitors can view
-            if (isAdmin || cvUrl != null)
-              GradientButton(
-                label: isAdmin && cvUrl == null
-                    ? 'Upload CV'
-                    : cvUrl != null
-                        ? 'View CV'
-                        : 'Upload CV',
-                icon: isAdmin && cvUrl == null
-                    ? Icons.upload_file
-                    : Icons.picture_as_pdf_rounded,
-                isOutlined: true,
-                onPressed: () async {
-                  if (isAdmin && cvUrl == null) {
-                    // Admin: pick & upload CV
-                    FilePickerResult? result = await FilePicker.platform.pickFiles(
-                      type: FileType.custom,
-                      allowedExtensions: ['pdf', 'doc', 'docx'],
-                    );
-                    if (result != null && result.files.single.bytes != null) {
-                      final file = XFile.fromData(
-                          result.files.single.bytes!,
-                          name: result.files.single.name);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Uploading CV...')));
-                      final url = await SupabaseStorageService.uploadCV(file);
-                      if (url != null) {
-                        await FirebaseFirestore.instance
-                            .collection('settings')
-                            .doc('personal_info')
-                            .set({'cvUrl': url}, SetOptions(merge: true));
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('CV Uploaded Successfully!')));
-                        }
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('CV Upload Failed')));
-                        }
-                      }
-                    }
-                  } else if (cvUrl != null) {
-                    // Everyone: open CV in browser
-                    final uri = Uri.parse(cvUrl);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
-                    }
-                  } else if (isAdmin) {
-                    // Admin but no CV yet — shouldn't reach here but upload anyway
-                    FilePickerResult? result = await FilePicker.platform.pickFiles(
-                      type: FileType.custom,
-                      allowedExtensions: ['pdf', 'doc', 'docx'],
-                    );
-                    if (result != null && result.files.single.bytes != null) {
-                      final file = XFile.fromData(
-                          result.files.single.bytes!,
-                          name: result.files.single.name);
-                      final url = await SupabaseStorageService.uploadCV(file);
-                      if (url != null) {
-                        await FirebaseFirestore.instance
-                            .collection('settings')
-                            .doc('personal_info')
-                            .set({'cvUrl': url}, SetOptions(merge: true));
-                      }
-                    }
-                  }
-                },
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GradientButton(
+                  label: displayCvName.isNotEmpty ? displayCvName : 'View CV',
+                  icon: Icons.picture_as_pdf_rounded,
+                  isOutlined: true,
+                  onPressed: () => _handleCvAction(context, cvUrl),
+                ),
+              ],
+            ),
           ],
         ).animate().fadeIn(delay: 1000.ms, duration: 700.ms),
 
@@ -294,9 +267,9 @@ class _HeroText extends ConsumerWidget {
           runSpacing: 20,
           alignment: isMobile ? WrapAlignment.center : WrapAlignment.start,
           children: [
-            const _StatChip(value: '3+', label: 'Years Exp.'),
-            _StatChip(value: '$projectsCount+', label: 'Projects'),
-            const _StatChip(value: '15+', label: 'Clients'),
+            _StatChip(value: '1+', label: 'Years Exp.'),
+            _StatChip(value: '10+', label: 'Projects'),
+            const _StatChip(value: '5+', label: 'Clients'),
           ],
         ).animate().fadeIn(delay: 1200.ms, duration: 700.ms),
       ],
@@ -325,12 +298,25 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _HeroIllustration extends ConsumerWidget {
+class _HeroIllustration extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final personalInfo = ref.watch(personalInfoStreamProvider).value ?? {};
-    final photoUrl = (personalInfo['photoUrl'] ?? '').toString();
-    final photoUrlOrNull = photoUrl.isEmpty ? null : photoUrl;
+  ConsumerState<_HeroIllustration> createState() => _HeroIllustrationState();
+}
+
+class _HeroIllustrationState extends ConsumerState<_HeroIllustration> {
+  bool _isUploadingPhoto = false;
+  double _photoUploadProgress = 0.0;
+
+  Future<void> _pickAndUploadPhoto() async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please update the image in assets/images/Profile.jpeg manually.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isAdmin = ref.watch(authStateProvider).value != null;
     final size = Responsive.isMobile(context) ? 180.0 : 260.0;
 
@@ -342,13 +328,6 @@ class _HeroIllustration extends ConsumerWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: photoUrlOrNull == null
-                ? const LinearGradient(
-                    colors: [Color(0xFF0A1628), Color(0xFF0D1117)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
             border: Border.all(
               color: AppColors.accentCyan.withValues(alpha: 0.3),
               width: 2,
@@ -360,56 +339,42 @@ class _HeroIllustration extends ConsumerWidget {
                 spreadRadius: 10,
               ),
             ],
-            image: photoUrlOrNull != null
-                ? DecorationImage(
-                    image: NetworkImage(photoUrlOrNull),
-                    fit: BoxFit.cover,
-                  )
-                : null,
+            image: const DecorationImage(
+              image: AssetImage('assets/images/Profile.jpeg'),
+              fit: BoxFit.cover,
+            ),
           ),
-          child: photoUrlOrNull == null
-              ? ClipOval(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ShaderMask(
-                        shaderCallback: (b) =>
-                            AppColors.accentGradient.createShader(b),
-                        child: const Icon(Icons.person,
-                            size: 80, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
         ),
-        // Camera badge for admin
-        if (isAdmin)
+
+        if (_isUploadingPhoto)
+          Positioned(
+            bottom: 50,
+            right: 8,
+            left: 8,
+            child: Column(
+              children: [
+                LinearProgressIndicator(
+                  value: _photoUploadProgress > 0.0 && _photoUploadProgress < 1.0
+                      ? _photoUploadProgress
+                      : null,
+                  backgroundColor: AppColors.border,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.accentCyan),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${(_photoUploadProgress * 100).round()}%',
+                  style: AppTextStyles.labelMedium.copyWith(fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+        if (isAdmin && !_isUploadingPhoto)
           Positioned(
             bottom: 8,
             right: 8,
             child: GestureDetector(
-              onTap: () async {
-                final ImagePicker picker = ImagePicker();
-                final XFile? image =
-                    await picker.pickImage(source: ImageSource.gallery);
-                if (image != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Uploading photo...')));
-                  final url =
-                      await SupabaseStorageService.uploadProfilePhoto(image);
-                  if (url != null) {
-                    await FirebaseFirestore.instance
-                        .collection('settings')
-                        .doc('personal_info')
-                        .set({'photoUrl': url}, SetOptions(merge: true));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Photo uploaded successfully!')));
-                    }
-                  }
-                }
-              },
+              onTap: _pickAndUploadPhoto,
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(

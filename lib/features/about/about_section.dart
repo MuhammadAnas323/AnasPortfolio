@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/portfolio_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../services/firebase_providers.dart';
-import '../../services/supabase_storage_service.dart';
 import '../../utils/responsive_layout.dart';
 
 class AboutSection extends StatelessWidget {
@@ -148,9 +146,29 @@ class _BigStat extends StatelessWidget {
 
 // ─── About Illustration Card ─────────────────────────────────────────────────
 
-class _AboutIllustration extends ConsumerWidget {
+class _AboutIllustration extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AboutIllustration> createState() =>
+      _AboutIllustrationState();
+}
+
+class _AboutIllustrationState extends ConsumerState<_AboutIllustration> {
+  bool _isUploading = false;
+  double _uploadProgress = 0.0;
+
+  static const _allowedExtensions = {'jpg', 'jpeg', 'png', 'webp'};
+  static const int _maxImageBytes = 5 * 1024 * 1024;
+
+  Future<void> _pickAndUpload() async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please update the image in assets/images/profile.jpg manually.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final personalInfo = ref.watch(personalInfoStreamProvider).value ?? {};
     final _rawPhoto = (personalInfo['photoUrl'] ?? '').toString();
     final photoUrl = _rawPhoto.isEmpty ? null : _rawPhoto;
@@ -175,62 +193,49 @@ class _AboutIllustration extends ConsumerWidget {
                   Container(
                     width: 80,
                     height: 80,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: photoUrl == null
-                          ? const LinearGradient(
-                              colors: [Color(0xFF0A1628), Color(0xFF0D1117)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null,
-                      image: photoUrl != null
-                          ? DecorationImage(
-                              image: NetworkImage(photoUrl),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/Profile.jpeg'),
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                    child: photoUrl == null
-                        ? ShaderMask(
-                            shaderCallback: (b) =>
-                                AppColors.accentGradient.createShader(b),
-                            child: const Icon(Icons.person,
-                                size: 44, color: Colors.white),
-                          )
-                        : null,
                   ),
-                  // Upload button (admin only) — small icon badge
-                  if (isAdmin)
+                  if (_isUploading)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      left: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: Column(
+                          children: [
+                            LinearProgressIndicator(
+                              value: _uploadProgress > 0.0 &&
+                                      _uploadProgress < 1.0
+                                  ? _uploadProgress
+                                  : null,
+                              backgroundColor: AppColors.border,
+                              valueColor:
+                                  const AlwaysStoppedAnimation<Color>(
+                                      AppColors.accentCyan),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${(_uploadProgress * 100).round()}%',
+                              style: AppTextStyles.labelMedium
+                                  .copyWith(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (isAdmin && !_isUploading)
                     Positioned(
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: () async {
-                          final ImagePicker picker = ImagePicker();
-                          final XFile? image =
-                              await picker.pickImage(source: ImageSource.gallery);
-                          if (image != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Uploading photo...')));
-                            final url = await SupabaseStorageService
-                                .uploadProfilePhoto(image);
-                            if (url != null) {
-                              await FirebaseFirestore.instance
-                                  .collection('settings')
-                                  .doc('personal_info')
-                                  .set({'photoUrl': url},
-                                      SetOptions(merge: true));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Photo uploaded successfully!')));
-                              }
-                            }
-                          }
-                        },
+                        onTap: _pickAndUpload,
                         child: Container(
                           padding: const EdgeInsets.all(5),
                           decoration: const BoxDecoration(

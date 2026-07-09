@@ -10,10 +10,11 @@ class ProjectModel {
   final List<String> tools;
   final String? githubUrl;
   final String? liveUrl;
+  final String? figmaUrl;
   final String category;
   final String accentColorHex;
   final String imageUrl;
-  final String imagePath;
+  final String imagePublicId;
 
   const ProjectModel({
     required this.id,
@@ -27,10 +28,11 @@ class ProjectModel {
     required this.tools,
     this.githubUrl,
     this.liveUrl,
+    this.figmaUrl,
     required this.category,
     required this.accentColorHex,
     required this.imageUrl,
-    required this.imagePath,
+    required this.imagePublicId,
   });
 
   Map<String, dynamic> toMap() {
@@ -46,16 +48,15 @@ class ProjectModel {
       'tools': tools,
       'githubUrl': githubUrl,
       'liveUrl': liveUrl,
+      'figmaUrl': figmaUrl,
       'category': category,
       'accentColorHex': accentColorHex,
       'imageUrl': imageUrl,
-      'imagePath': imagePath,
+      'imagePublicId': imagePublicId,
     };
   }
 
   factory ProjectModel.fromMap(Map<String, dynamic> map, {String? docId}) {
-    // imageUrl was previously stored as a Map {'url': ..., 'path': ...}
-    // Support both the old Map format and the new plain String format.
     String resolveImageUrl(dynamic value) {
       if (value == null) return '';
       if (value is String) return value;
@@ -63,7 +64,7 @@ class ProjectModel {
       return value.toString();
     }
 
-    String resolveImagePath(dynamic value) {
+    String resolvePublicId(dynamic value) {
       if (value == null) return '';
       if (value is String) return value;
       if (value is Map) return (value['path'] ?? '').toString();
@@ -88,10 +89,11 @@ class ProjectModel {
       tools: List<String>.from(map['tools'] ?? []),
       githubUrl: resolveNullableString(map['githubUrl']),
       liveUrl: resolveNullableString(map['liveUrl']),
+      figmaUrl: resolveNullableString(map['figmaUrl']),
       category: map['category']?.toString() ?? 'General',
       accentColorHex: map['accentColorHex']?.toString() ?? '#22D3EE',
       imageUrl: resolveImageUrl(map['imageUrl']),
-      imagePath: resolveImagePath(map['imagePath']),
+      imagePublicId: resolvePublicId(map['imagePublicId'] ?? map['imagePath'] ?? ''),
     );
   }
 }

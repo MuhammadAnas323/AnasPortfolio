@@ -162,15 +162,18 @@ class _NavBarState extends ConsumerState<NavBar> {
                               _NavLink('Skills', () => _scrollToSection(widget.skillsKey)),
                               _NavLink('Experience', () => _scrollToSection(widget.experienceKey)),
                               _NavLink('About', () => _scrollToSection(widget.aboutKey)),
-                              const SizedBox(width: 8),
+                              if (isLoggedIn) ...[
+                                const SizedBox(width: 4),
+                                _NavLink('Admin', () => context.go('/admin')),
+                                const SizedBox(width: 8),
+                              ],
                               _ContactButton(() => _scrollToSection(widget.contactKey)),
-                              const SizedBox(width: 8),
-                              if (isLoggedIn)
-                                _NavLink('Sign Out', () => FirebaseAuth.instance.signOut())
-                              else
-                                _NavLink('Sign In', () => context.go('/signin')),
-                              const SizedBox(width: 10),
-                              _NavAvatar(),
+                              if (isLoggedIn) ...[
+                                const SizedBox(width: 8),
+                                _NavLink('Sign Out', () => FirebaseAuth.instance.signOut()),
+                                const SizedBox(width: 10),
+                                _NavAvatar(),
+                              ],
                             ],
                           ),
                       ],
@@ -193,15 +196,15 @@ class _NavBarState extends ConsumerState<NavBar> {
                   _MobileNavLink('Skills', () => _scrollToSection(widget.skillsKey)),
                   _MobileNavLink('Experience', () => _scrollToSection(widget.experienceKey)),
                   _MobileNavLink('About', () => _scrollToSection(widget.aboutKey)),
+                  if (isLoggedIn)
+                    _MobileNavLink('Admin', () {
+                      context.go('/admin');
+                      setState(() => _mobileMenuOpen = false);
+                    }),
                   _MobileNavLink('Contact', () => _scrollToSection(widget.contactKey)),
                   if (isLoggedIn)
                     _MobileNavLink('Sign Out', () {
                       FirebaseAuth.instance.signOut();
-                      setState(() => _mobileMenuOpen = false);
-                    })
-                  else
-                    _MobileNavLink('Sign In', () {
-                      context.go('/signin');
                       setState(() => _mobileMenuOpen = false);
                     }),
                   const SizedBox(height: 8),

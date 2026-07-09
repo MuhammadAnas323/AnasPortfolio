@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../core/constants/portfolio_data.dart';
 import '../../../core/models/project_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../services/firebase_providers.dart';
 import '../../../utils/responsive_layout.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProjectDetailPage extends ConsumerStatefulWidget {
   final String projectId;
@@ -56,7 +58,12 @@ class _ProjectDetailPageState extends ConsumerState<ProjectDetailPage> {
     final projectsAsync = ref.watch(projectsStreamProvider);
 
     return projectsAsync.when(
-      data: (projects) {
+      data: (firestoreProjects) {
+        // Use local fallback if Firestore is empty
+        final projects = firestoreProjects.isEmpty
+            ? PortfolioData.projects
+            : firestoreProjects;
+
         if (projects.isEmpty) {
           return Scaffold(
             backgroundColor: AppColors.bgPrimary,
@@ -65,8 +72,6 @@ class _ProjectDetailPageState extends ConsumerState<ProjectDetailPage> {
         }
 
         _initCurrentIndex(projects);
-        
-        // Safety clamp just in case
         _currentIndex = _currentIndex.clamp(0, projects.length - 1).toInt();
         final project = projects[_currentIndex];
 
@@ -85,15 +90,11 @@ class _ProjectDetailPageState extends ConsumerState<ProjectDetailPage> {
           backgroundColor: AppColors.bgPrimary,
           body: Stack(
             children: [
-              // Main scrollable content
               SingleChildScrollView(
                 controller: _scroll,
                 child: Column(
                   children: [
-                    // Hero banner
                     _ProjectHeroBanner(project: project, accentColor: accentColor, isMobile: isMobile),
-
-                    // Content area
                     Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: Responsive.desktopMaxWidth),
@@ -122,20 +123,14 @@ class _ProjectDetailPageState extends ConsumerState<ProjectDetailPage> {
                         ),
                       ),
                     ),
-
-                    // Bottom padding for switcher bar
                     const SizedBox(height: 100),
                   ],
                 ),
               ),
-
-              // Sticky top bar
               Positioned(
                 top: 0, left: 0, right: 0,
                 child: _DetailTopBar(project: project, accentColor: accentColor),
               ),
-
-              // Sticky bottom switcher
               Positioned(
                 bottom: 0, left: 0, right: 0,
                 child: _ProjectSwitcherBar(
@@ -153,14 +148,75 @@ class _ProjectDetailPageState extends ConsumerState<ProjectDetailPage> {
           ),
         );
       },
-      loading: () => const Scaffold(
-        backgroundColor: AppColors.bgPrimary,
-        body: Center(child: CircularProgressIndicator(color: AppColors.accentCyan)),
-      ),
-      error: (e, st) => Scaffold(
-        backgroundColor: AppColors.bgPrimary,
-        body: Center(child: Text('Error loading projects', style: AppTextStyles.titleMedium)),
-      ),
+      // While loading, immediately show local data so user doesn't wait
+      loading: () {
+        final projects = PortfolioData.projects;
+        if (projects.isEmpty) {
+          return const Scaffold(
+            backgroundColor: AppColors.bgPrimary,
+            body: Center(child: CircularProgressIndicator(color: AppColors.accentCyan)),
+          );
+        }
+        _initCurrentIndex(projects);
+        _currentIndex = _currentIndex.clamp(0, projects.length - 1).toInt();
+        final project = projects[_currentIndex];
+        final isMobile = Responsive.isMobile(context);
+        Color accentColor;
+        try {
+          final hex = project.accentColorHex.replaceAll('#', '');
+          accentColor = Color(int.parse('FF$hex', radix: 16));
+        } catch (_) {
+          accentColor = AppColors.accentCyan;
+        }
+        return Scaffold(
+          backgroundColor: AppColors.bgPrimary,
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                _ProjectHeroBanner(project: project, accentColor: accentColor, isMobile: isMobile),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 60, vertical: 48),
+                  child: _ProjectBody(project: project, accentColor: accentColor),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      error: (e, st) {
+        final projects = PortfolioData.projects;
+        if (projects.isEmpty) {
+          return Scaffold(
+            backgroundColor: AppColors.bgPrimary,
+            body: Center(child: Text('Error loading projects', style: AppTextStyles.titleMedium)),
+          );
+        }
+        _initCurrentIndex(projects);
+        _currentIndex = _currentIndex.clamp(0, projects.length - 1).toInt();
+        final project = projects[_currentIndex];
+        final isMobile = Responsive.isMobile(context);
+        Color accentColor;
+        try {
+          final hex = project.accentColorHex.replaceAll('#', '');
+          accentColor = Color(int.parse('FF$hex', radix: 16));
+        } catch (_) {
+          accentColor = AppColors.accentCyan;
+        }
+        return Scaffold(
+          backgroundColor: AppColors.bgPrimary,
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                _ProjectHeroBanner(project: project, accentColor: accentColor, isMobile: isMobile),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 60, vertical: 48),
+                  child: _ProjectBody(project: project, accentColor: accentColor),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -300,6 +356,9 @@ class _ProjectBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Screenshots for restaurant management project
+    final screenshots = _getScreenshots(project.id);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -309,6 +368,14 @@ class _ProjectBody extends StatelessWidget {
           accentColor: accentColor,
           child: Text(project.description, style: AppTextStyles.bodyLarge),
         ),
+
+        // Screenshots gallery
+        if (screenshots.isNotEmpty)
+          _Section(
+            title: 'Screenshots',
+            accentColor: accentColor,
+            child: _ScreenshotGallery(screenshots: screenshots, accentColor: accentColor),
+          ),
 
         // Problem / Solution
         _TwoColSection(
@@ -348,13 +415,117 @@ class _ProjectBody extends StatelessWidget {
             runSpacing: 12,
             children: [
               if (project.githubUrl != null)
-                _ActionButton(label: 'View on GitHub', icon: Icons.code_rounded, color: accentColor),
+                _ActionButton(label: 'View on GitHub', icon: Icons.code_rounded, color: accentColor, url: project.githubUrl!),
               if (project.liveUrl != null)
-                _ActionButton(label: 'Live Demo', icon: Icons.open_in_new_rounded, color: accentColor, filled: true),
-              if (project.githubUrl == null && project.liveUrl == null)
+                _ActionButton(label: 'Live Demo', icon: Icons.open_in_new_rounded, color: accentColor, filled: true, url: project.liveUrl!),
+              if (project.figmaUrl != null)
+                _ActionButton(label: 'Figma Design', icon: Icons.design_services_rounded, color: AppColors.accentTeal, url: project.figmaUrl!),
+              if (project.githubUrl == null && project.liveUrl == null && project.figmaUrl == null)
                 Text('Source code available on request.',
                     style: AppTextStyles.bodyMedium),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<String> _getScreenshots(String projectId) {
+    // Map project IDs to their asset image lists
+    const Map<String, List<String>> projectScreenshots = {
+      'restaurant-management': [
+        'assets/images/resturent_management/Dashboared.png',
+        'assets/images/resturent_management/Orders.png',
+        'assets/images/resturent_management/Tables.png',
+        'assets/images/resturent_management/Inventory.png',
+        'assets/images/resturent_management/Staff.png',
+        'assets/images/resturent_management/Expense.png',
+        'assets/images/resturent_management/CashManagement.png',
+        'assets/images/resturent_management/Reports.png',
+        'assets/images/resturent_management/Setting.png',
+      ],
+    };
+    return projectScreenshots[projectId] ?? [];
+  }
+}
+
+class _ScreenshotGallery extends StatefulWidget {
+  final List<String> screenshots;
+  final Color accentColor;
+  const _ScreenshotGallery({required this.screenshots, required this.accentColor});
+
+  @override
+  State<_ScreenshotGallery> createState() => _ScreenshotGalleryState();
+}
+
+class _ScreenshotGalleryState extends State<_ScreenshotGallery> {
+  int _selected = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main large preview (renders full aspect ratio / full size without crop)
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.bgCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(11),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.asset(
+                widget.screenshots[_selected],
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  color: widget.accentColor.withValues(alpha: 0.08),
+                  child: Center(
+                    child: Icon(Icons.image_rounded, color: widget.accentColor, size: 48),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Thumbnail strip
+        SizedBox(
+          height: 64,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: widget.screenshots.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final isActive = i == _selected;
+              return GestureDetector(
+                onTap: () => setState(() => _selected = i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 90,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isActive ? widget.accentColor : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset(
+                      widget.screenshots[i],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: widget.accentColor.withValues(alpha: 0.08),
+                        child: Icon(Icons.image_rounded, color: widget.accentColor, size: 20),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -496,7 +667,8 @@ class _ActionButton extends StatefulWidget {
   final IconData icon;
   final Color color;
   final bool filled;
-  const _ActionButton({required this.label, required this.icon, required this.color, this.filled = false});
+  final String url;
+  const _ActionButton({required this.label, required this.icon, required this.color, this.filled = false, required this.url});
 
   @override
   State<_ActionButton> createState() => _ActionButtonState();
@@ -511,8 +683,15 @@ class _ActionButtonState extends State<_ActionButton> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: GestureDetector(
+        onTap: () async {
+          final uri = Uri.parse(widget.url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: widget.filled
@@ -537,6 +716,7 @@ class _ActionButtonState extends State<_ActionButton> {
                 )),
           ],
         ),
+      ),
       ),
     );
   }

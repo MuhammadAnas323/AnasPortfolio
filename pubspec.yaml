@@ -15,8 +15,8 @@ dependencies:
   animated_text_kit: ^4.2.2
   visibility_detector: ^0.4.0+2
   flutter_animate: ^4.5.0
-  supabase_flutter: ^2.5.6
-  image_picker: ^1.1.2
+
+  http: ^1.2.1
   flutter_riverpod: ^2.5.1
   firebase_core: ^3.1.0
   firebase_auth: ^5.1.0
@@ -32,3 +32,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/resturent_management/
+    - assets/CV/

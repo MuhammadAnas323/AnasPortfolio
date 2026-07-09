@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/gradient_button.dart';
 import '../../utils/responsive_layout.dart';
+
+// ── Replace with your Formspree form ID from https://formspree.io ──────────
+const _formspreeEndpoint = 'https://formspree.io/f/YOUR_FORM_ID';
 
 const String _myEmail = 'anasktk2125@gmail.com';
 const String _myWhatsApp = '923241788391'; // international format no +
@@ -37,27 +42,48 @@ class _ContactSectionState extends State<ContactSection> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
 
-    // Build mailto link with pre-filled subject and body
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final message = _messageController.text.trim();
-    final subject = Uri.encodeComponent('Portfolio Contact from $name');
-    final body = Uri.encodeComponent('From: $name\nEmail: $email\n\n$message');
-    final mailtoUri = Uri.parse('mailto:$_myEmail?subject=$subject&body=$body');
 
-    if (await canLaunchUrl(mailtoUri)) {
-      await launchUrl(mailtoUri);
+    bool success = false;
+    try {
+      final response = await http.post(
+        Uri.parse(_formspreeEndpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'message': message,
+        }),
+      );
+      success = response.statusCode == 200;
+    } catch (_) {
+      success = false;
     }
 
-    setState(() {
-      _loading = false;
-      _submitted = true;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _submitted = success;
+      });
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Message could not be sent. Please try emailing directly.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = Responsive.isMobile(context);
 
     return Container(
       key: widget.sectionKey,

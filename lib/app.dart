@@ -5,6 +5,7 @@ import 'features/home/home_page.dart';
 import 'features/projects/project_detail/project_detail_page.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
+import 'features/admin/admin_panel.dart';
 
 class AnasPortfolioApp extends StatelessWidget {
   const AnasPortfolioApp({super.key});
@@ -22,6 +23,10 @@ class AnasPortfolioApp extends StatelessWidget {
           final id = state.pathParameters['id'] ?? '';
           return ProjectDetailPage(projectId: id);
         },
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminPanel(),
       ),
       GoRoute(
         path: '/signin',

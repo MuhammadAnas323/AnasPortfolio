@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/gradient_button.dart';
 import '../../core/models/project_model.dart';
-import '../../services/supabase_storage_service.dart';
 import '../../services/firebase_providers.dart';
 
 class AddProjectDialog extends ConsumerStatefulWidget {
-  const AddProjectDialog({super.key});
+  final ProjectModel? project;
+  const AddProjectDialog({super.key, this.project});
 
   @override
   ConsumerState<AddProjectDialog> createState() => _AddProjectDialogState();
@@ -24,13 +23,15 @@ class _AddProjectDialogState extends ConsumerState<AddProjectDialog> {
   final _problemController = TextEditingController();
   final _solutionController = TextEditingController();
   final _linkController = TextEditingController();
-  
+  final _figmaLinkController = TextEditingController();
+  final _imagePathController = TextEditingController(text: 'assets/images/project1.jpg');
+
   final _skillInputController = TextEditingController();
   final _toolInputController = TextEditingController();
 
-  XFile? _selectedImage;
   String _selectedCategory = 'Mobile App';
-  String _selectedAccentColor = '#00D4FF'; // Default Cyan
+  String _selectedAccentColor = '#00D4FF';
+  double _uploadProgress = 0.0;
 
   final List<String> _skills = ['Flutter', 'Dart'];
   final List<String> _tools = ['Figma', 'VS Code'];
@@ -54,6 +55,30 @@ class _AddProjectDialogState extends ConsumerState<AddProjectDialog> {
     'Blue (#60A5FA)': const Color(0xFF60A5FA),
   };
 
+
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.project != null) {
+      final p = widget.project!;
+      _titleController.text = p.title;
+      _taglineController.text = p.tagline;
+      _descriptionController.text = p.description;
+      _problemController.text = p.problemStatement;
+      _solutionController.text = p.solution;
+      _linkController.text = p.githubUrl ?? p.liveUrl ?? '';
+      _figmaLinkController.text = p.figmaUrl ?? '';
+      _imagePathController.text = p.imageUrl.isNotEmpty ? p.imageUrl : 'assets/images/project1.jpg';
+      _skills.clear();
+      _skills.addAll(p.techStack);
+      _tools.clear();
+      _tools.addAll(p.tools);
+      _selectedCategory = p.category;
+      _selectedAccentColor = p.accentColorHex;
+    }
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -62,18 +87,11 @@ class _AddProjectDialogState extends ConsumerState<AddProjectDialog> {
     _problemController.dispose();
     _solutionController.dispose();
     _linkController.dispose();
+    _figmaLinkController.dispose();
+    _imagePathController.dispose();
     _skillInputController.dispose();
     _toolInputController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    final image = await SupabaseStorageService.pickImage();
-    if (image != null) {
-      setState(() {
-        _selectedImage = image;
-      });
-    }
   }
 
   void _addSkill() {
@@ -98,61 +116,102 @@ class _AddProjectDialogState extends ConsumerState<AddProjectDialog> {
 
   Future<void> _saveProject() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedImage == null) {
+    if (_imagePathController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload a project image.')),
+        const SnackBar(content: Text('Please enter an image path.')),
       );
       return;
     }
 
     ref.read(isUploadingProvider.notifier).state = true;
+    setState(() => _uploadProgress = 0.0);
 
     try {
-      // 1. Upload to Supabase Storage
-      final uploadResult = await SupabaseStorageService.uploadProjectImage(_selectedImage!);
-      if (uploadResult == null) {
-        throw Exception('Failed to upload image to Supabase.');
-      }
+      String imageUrl = _imagePathController.text.trim();
+      String imagePublicId = 'local';
 
-      // 2. Save metadata to Firestore
-      final docRef = FirebaseFirestore.instance.collection('projects').doc();
       final String tagline = _taglineController.text.trim().isNotEmpty
           ? _taglineController.text.trim()
           : 'A ${_selectedCategory.toLowerCase()} built using ${_skills.join(", ")}';
 
-      final project = ProjectModel(
-        id: docRef.id,
-        title: _titleController.text.trim(),
-        tagline: tagline,
-        description: _descriptionController.text.trim(),
-        problemStatement: _problemController.text.trim().isNotEmpty
-            ? _problemController.text.trim()
-            : 'Designing a highly functional user experience.',
-        solution: _solutionController.text.trim().isNotEmpty
-            ? _solutionController.text.trim()
-            : 'Developed a robust application with integrated Supabase & Firebase features.',
-        techStack: _skills,
-        features: [
-          'Responsive design layouts',
-          'Dynamic data retrieval',
-          'High performance optimization',
-        ],
-        tools: _tools,
-        githubUrl: _linkController.text.trim().contains('github') ? _linkController.text.trim() : null,
-        liveUrl: !_linkController.text.trim().contains('github') && _linkController.text.trim().isNotEmpty 
-            ? _linkController.text.trim() 
-            : null,
-        category: _selectedCategory,
-        accentColorHex: _selectedAccentColor,
-        imageUrl: uploadResult,
-        imagePath: '',
-      );
-
-      await docRef.set(project.toMap());
+      if (widget.project != null) {
+        await FirebaseFirestore.instance
+            .collection('projects')
+            .doc(widget.project!.id)
+            .update({
+          'title': _titleController.text.trim(),
+          'tagline': tagline,
+          'description': _descriptionController.text.trim(),
+          'problemStatement': _problemController.text.trim().isNotEmpty
+              ? _problemController.text.trim()
+              : 'Designing a highly functional user experience.',
+          'solution': _solutionController.text.trim().isNotEmpty
+              ? _solutionController.text.trim()
+              : 'Developed a robust application with integrated Cloudinary & Firebase features.',
+          'techStack': _skills,
+          'tools': _tools,
+          'githubUrl': _linkController.text.trim().contains('github')
+              ? _linkController.text.trim()
+              : null,
+          'liveUrl': !_linkController.text.trim().contains('github') &&
+                  _linkController.text.trim().isNotEmpty
+              ? _linkController.text.trim()
+              : null,
+          'figmaUrl': _figmaLinkController.text.trim().isNotEmpty
+              ? _figmaLinkController.text.trim()
+              : null,
+          'category': _selectedCategory,
+          'accentColorHex': _selectedAccentColor,
+          'imageUrl': imageUrl,
+          'imagePublicId': imagePublicId,
+        });
+      } else {
+        final docRef = FirebaseFirestore.instance.collection('projects').doc();
+        final project = ProjectModel(
+          id: docRef.id,
+          title: _titleController.text.trim(),
+          tagline: tagline,
+          description: _descriptionController.text.trim(),
+          problemStatement: _problemController.text.trim().isNotEmpty
+              ? _problemController.text.trim()
+              : 'Designing a highly functional user experience.',
+          solution: _solutionController.text.trim().isNotEmpty
+              ? _solutionController.text.trim()
+              : 'Developed a robust application with integrated Cloudinary & Firebase features.',
+          techStack: _skills,
+          features: [
+            'Responsive design layouts',
+            'Dynamic data retrieval',
+            'High performance optimization',
+          ],
+          tools: _tools,
+          githubUrl: _linkController.text.trim().contains('github')
+              ? _linkController.text.trim()
+              : null,
+          liveUrl: !_linkController.text.trim().contains('github') &&
+                  _linkController.text.trim().isNotEmpty
+              ? _linkController.text.trim()
+              : null,
+          figmaUrl: _figmaLinkController.text.trim().isNotEmpty
+              ? _figmaLinkController.text.trim()
+              : null,
+          category: _selectedCategory,
+          accentColorHex: _selectedAccentColor,
+          imageUrl: imageUrl,
+          imagePublicId: imagePublicId,
+        );
+        await docRef.set(project.toMap());
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Project saved successfully!')),
+          SnackBar(
+            content: Text(
+              widget.project != null
+                  ? 'Project updated successfully!'
+                  : 'Project saved successfully!',
+            ),
+          ),
         );
         Navigator.of(context).pop();
       }
@@ -170,279 +229,318 @@ class _AddProjectDialogState extends ConsumerState<AddProjectDialog> {
   @override
   Widget build(BuildContext context) {
     final isUploading = ref.watch(isUploadingProvider);
+    final isEditing = widget.project != null;
 
     return Dialog(
       backgroundColor: AppColors.bgSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 650,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
         padding: const EdgeInsets.all(24),
-        child: isUploading
-            ? const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isUploading && _uploadProgress > 0.0 && _uploadProgress < 1.0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan)),
-                    SizedBox(height: 24),
+                    LinearProgressIndicator(
+                      value: _uploadProgress,
+                      backgroundColor: AppColors.border,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.accentCyan),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      'Uploading Image & Saving Project...',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                      'Uploading image... ${(_uploadProgress * 100).round()}%',
+                      style: AppTextStyles.labelMedium,
                     ),
                   ],
                 ),
-              )
-            : Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              ),
+            Expanded(
+              child: isUploading
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Add New Project', style: AppTextStyles.headlineSmall),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                            onPressed: () => Navigator.of(context).pop(),
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.accentCyan),
+                          ),
+                          SizedBox(height: 24),
+                          Text(
+                            'Saving project...',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-
-                      // Title
-                      TextFormField(
-                        controller: _titleController,
-                        style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: _inputDecoration('Project Title (e.g. FitTrack)'),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Title is required' : null,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Tagline
-                      TextFormField(
-                        controller: _taglineController,
-                        style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: _inputDecoration('Tagline / Subtitle (optional)'),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Description
-                      TextFormField(
-                        controller: _descriptionController,
-                        maxLines: 4,
-                        style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: _inputDecoration('Project Description'),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Description is required' : null,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Category and Accent color selection
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedCategory,
-                              dropdownColor: AppColors.bgSurface,
-                              style: const TextStyle(color: AppColors.textPrimary),
-                              decoration: _inputDecoration('Category'),
-                              items: _categories.map((c) {
-                                return DropdownMenuItem(value: c, child: Text(c));
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) setState(() => _selectedCategory = val);
-                              },
+                    )
+                  : Form(
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isEditing ? 'Edit Project' : 'Add New Project',
+                                  style: AppTextStyles.headlineSmall,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close,
+                                      color: AppColors.textSecondary),
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _accentColors.keys.firstWhere(
-                                (k) => '#${_accentColors[k]!.value.toRadixString(16).substring(2).toUpperCase()}' == _selectedAccentColor,
-                                orElse: () => _accentColors.keys.first,
-                              ),
-                              dropdownColor: AppColors.bgSurface,
-                              style: const TextStyle(color: AppColors.textPrimary),
-                              decoration: _inputDecoration('Accent Color'),
-                              items: _accentColors.keys.map((k) {
-                                return DropdownMenuItem(
-                                  value: k,
-                                  child: Row(
-                                    children: [
-                                      Container(width: 12, height: 12, color: _accentColors[k]),
-                                      const SizedBox(width: 8),
-                                      Text(k.split(' ')[0]),
-                                    ],
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _titleController,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration: _inputDecoration(
+                                  'Project Title (e.g. FitTrack)'),
+                              validator: (v) =>
+                                  v == null || v.trim().isEmpty
+                                      ? 'Title is required'
+                                      : null,
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _taglineController,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration: _inputDecoration(
+                                  'Tagline / Subtitle (optional)'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _descriptionController,
+                              maxLines: 4,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration:
+                                  _inputDecoration('Project Description'),
+                              validator: (v) =>
+                                  v == null || v.trim().isEmpty
+                                      ? 'Description is required'
+                                      : null,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedCategory,
+                                    dropdownColor: AppColors.bgSurface,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary),
+                                    decoration:
+                                        _inputDecoration('Category'),
+                                    items: _categories.map((c) {
+                                      return DropdownMenuItem(
+                                          value: c, child: Text(c));
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(
+                                            () => _selectedCategory = val);
+                                      }
+                                    },
                                   ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _accentColors.keys.firstWhere(
+                                      (k) =>
+                                          '#${_accentColors[k]!.value.toRadixString(16).substring(2).toUpperCase()}' ==
+                                          _selectedAccentColor,
+                                      orElse: () => _accentColors.keys.first,
+                                    ),
+                                    dropdownColor: AppColors.bgSurface,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary),
+                                    decoration:
+                                        _inputDecoration('Accent Color'),
+                                    items: _accentColors.keys.map((k) {
+                                      return DropdownMenuItem(
+                                        value: k,
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 12,
+                                              height: 12,
+                                              color: _accentColors[k],
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(k.split(' ')[0]),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        final colorHex =
+                                            '#${_accentColors[val]!.value.toRadixString(16).substring(2).toUpperCase()}';
+                                        setState(() =>
+                                            _selectedAccentColor = colorHex);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _imagePathController,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration: _inputDecoration(
+                                  'Asset Image Path (e.g. assets/images/project1.jpg)'),
+                              validator: (v) =>
+                                  v == null || v.trim().isEmpty
+                                      ? 'Image path is required'
+                                      : null,
+                            ),
+                            const SizedBox(height: 16),
+                            Text('Skills Used',
+                                style: AppTextStyles.titleMedium),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _skills.map((s) {
+                                return Chip(
+                                  label: Text(s,
+                                      style: const TextStyle(
+                                          color: AppColors.textPrimary)),
+                                  backgroundColor: AppColors.bgCard,
+                                  deleteIcon: const Icon(Icons.close,
+                                      size: 14, color: Colors.redAccent),
+                                  onDeleted: () =>
+                                      setState(() => _skills.remove(s)),
                                 );
                               }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  final colorHex = '#${_accentColors[val]!.value.toRadixString(16).substring(2).toUpperCase()}';
-                                  setState(() => _selectedAccentColor = colorHex);
-                                }
-                              },
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Image picker
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.border),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _selectedImage == null ? 'No image selected' : _selectedImage!.name,
-                                    style: AppTextStyles.bodyMedium,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Upload project screenshot or design',
-                                    style: AppTextStyles.labelMedium.copyWith(fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            if (_selectedImage != null)
-                              Container(
-                                width: 50,
-                                height: 50,
-                                margin: const EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Image.network(
-                                    _selectedImage!.path,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(Icons.image, color: AppColors.textSecondary),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _skillInputController,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary),
+                                    decoration: _inputDecoration(
+                                        'Add custom skill...'),
+                                    onFieldSubmitted: (_) => _addSkill(),
                                   ),
                                 ),
-                              ),
-                            GradientButton(
-                              label: 'Pick File',
-                              icon: Icons.upload_file,
-                              isOutlined: true,
-                              onPressed: _pickImage,
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle,
+                                      color: AppColors.accentCyan),
+                                  onPressed: isUploading ? null : _addSkill,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text('Tools Used',
+                                style: AppTextStyles.titleMedium),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _tools.map((t) {
+                                return Chip(
+                                  label: Text(t,
+                                      style: const TextStyle(
+                                          color: AppColors.textPrimary)),
+                                  backgroundColor: AppColors.bgCard,
+                                  deleteIcon: const Icon(Icons.close,
+                                      size: 14, color: Colors.redAccent),
+                                  onDeleted: () =>
+                                      setState(() => _tools.remove(t)),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _toolInputController,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary),
+                                    decoration: _inputDecoration(
+                                        'Add custom tool...'),
+                                    onFieldSubmitted: (_) => _addTool(),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle,
+                                      color: AppColors.accentCyan),
+                                  onPressed: isUploading ? null : _addTool,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _linkController,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration: _inputDecoration(
+                                  'Live Demo / GitHub Link (optional)'),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _figmaLinkController,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration: _inputDecoration(
+                                  'Figma Design Link (optional)'),
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  child: const Text('Cancel',
+                                      style: TextStyle(
+                                          color: AppColors.textSecondary)),
+                                  onPressed: isUploading
+                                      ? null
+                                      : () => Navigator.of(context).pop(),
+                                ),
+                                const SizedBox(width: 16),
+                                GradientButton(
+                                  label: isEditing
+                                      ? 'Update Project'
+                                      : 'Save Project',
+                                  icon: Icons.save_rounded,
+                                  onPressed: isUploading ? null : _saveProject,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Skills (chips dynamic list)
-                      Text('Skills Used', style: AppTextStyles.titleMedium),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _skills.map((s) {
-                          return Chip(
-                            label: Text(s, style: const TextStyle(color: AppColors.textPrimary)),
-                            backgroundColor: AppColors.bgCard,
-                            deleteIcon: const Icon(Icons.close, size: 14, color: Colors.redAccent),
-                            onDeleted: () => setState(() => _skills.remove(s)),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _skillInputController,
-                              style: const TextStyle(color: AppColors.textPrimary),
-                              decoration: _inputDecoration('Add custom skill...'),
-                              onFieldSubmitted: (_) => _addSkill(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle, color: AppColors.accentCyan),
-                            onPressed: _addSkill,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Tools (chips dynamic list)
-                      Text('Tools Used', style: AppTextStyles.titleMedium),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _tools.map((t) {
-                          return Chip(
-                            label: Text(t, style: const TextStyle(color: AppColors.textPrimary)),
-                            backgroundColor: AppColors.bgCard,
-                            deleteIcon: const Icon(Icons.close, size: 14, color: Colors.redAccent),
-                            onDeleted: () => setState(() => _tools.remove(t)),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _toolInputController,
-                              style: const TextStyle(color: AppColors.textPrimary),
-                              decoration: _inputDecoration('Add custom tool...'),
-                              onFieldSubmitted: (_) => _addTool(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle, color: AppColors.accentCyan),
-                            onPressed: _addTool,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Project link
-                      TextFormField(
-                        controller: _linkController,
-                        style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: _inputDecoration('Live Demo / GitHub Link (optional)'),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Submit & cancel buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                          const SizedBox(width: 16),
-                          GradientButton(
-                            label: 'Save Project',
-                            icon: Icons.save_rounded,
-                            onPressed: _saveProject,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -451,7 +549,8 @@ class _AddProjectDialogState extends ConsumerState<AddProjectDialog> {
     return InputDecoration(
       hintText: hint,
       hintStyle: AppTextStyles.labelMedium,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.border),

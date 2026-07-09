@@ -7,6 +7,36 @@ import '../../core/theme/app_text_styles.dart';
 import '../../services/firebase_providers.dart';
 import '../../utils/responsive_layout.dart';
 
+const _defaultExperience = [
+  {
+    'id': '_xove',
+    'order': 0,
+    'title': 'Flutter Developer',
+    'company': 'Xove Craft Technologies',
+    'period': 'June 2026 – Present',
+    'location': 'On-site',
+    'type': 'Full-time',
+    'description':
+        'Developing and maintaining cross-platform mobile app development projects using the Flutter framework, achieving high-performance optimization across mobile, web, and desktop targets. Spearheading REST API integration and implementing clean architecture to ensure a modular, scalable codebase, successfully delivering 100% production-ready features and performant UI/UX designs.',
+    'highlights': <String>[],
+    'tags': ['Flutter', 'Dart', 'REST APIs', 'Clean Architecture'],
+  },
+  {
+    'id': '_logic',
+    'order': 1,
+    'title': 'Flutter Developer',
+    'company': 'LogicCraft Technologies',
+    'period': 'July 2025 – June 2026',
+    'location': 'On-site',
+    'type': 'Full-time',
+    'description':
+        'Contributed to the design, development, and deployment of cross-platform mobile app development solutions using Dart and the Flutter framework. Managed the full application lifecycle, implementing secure Firebase authentication and database backends, optimizing REST API integrations, and collaborating on Riverpod/Provider state management to ensure a clean architecture and scalable codebases.',
+    'highlights': <String>[],
+    'tags': ['Flutter', 'Dart', 'Firebase', 'Riverpod'],
+  },
+];
+
+
 // ─── Stream Provider ───────────────────────────────────────────────────────────
 final experienceStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
@@ -68,12 +98,13 @@ class WorkSection extends ConsumerWidget {
             ),
             const SizedBox(height: 48),
 
-            // Timeline
+            // Timeline — always show real jobs, merge with Firestore entries
             expAsync.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return _EmptyState(isAdmin: isAdmin, onAdd: () => _showAddDialog(context));
-                }
+              data: (firestoreItems) {
+                // Use Firestore data if available, else fall back to hardcoded jobs
+                final items = firestoreItems.isNotEmpty
+                    ? firestoreItems
+                    : List<Map<String, dynamic>>.from(_defaultExperience);
                 return Column(
                   children: items
                       .asMap()
@@ -86,10 +117,28 @@ class WorkSection extends ConsumerWidget {
                       .toList(),
                 );
               },
-              loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.accentCyan)),
-              error: (e, _) =>
-                  Center(child: Text('Error: $e', style: AppTextStyles.bodyMedium)),
+              loading: () => Column(
+                children: _defaultExperience
+                    .asMap()
+                    .entries
+                    .map((e) => _ExperienceCard(
+                          item: Map<String, dynamic>.from(e.value),
+                          isLast: e.key == _defaultExperience.length - 1,
+                          isAdmin: false,
+                        ))
+                    .toList(),
+              ),
+              error: (e, _) => Column(
+                children: _defaultExperience
+                    .asMap()
+                    .entries
+                    .map((entry) => _ExperienceCard(
+                          item: Map<String, dynamic>.from(entry.value),
+                          isLast: entry.key == _defaultExperience.length - 1,
+                          isAdmin: false,
+                        ))
+                    .toList(),
+              ),
             ),
           ],
         ),
@@ -102,46 +151,8 @@ class WorkSection extends ConsumerWidget {
   }
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  final bool isAdmin;
-  final VoidCallback onAdd;
-  const _EmptyState({required this.isAdmin, required this.onAdd});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(48),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          ShaderMask(
-            shaderCallback: (b) => AppColors.accentGradient.createShader(b),
-            child: const Icon(Icons.work_outline, size: 48, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          Text('No experience added yet', style: AppTextStyles.titleMedium),
-          if (isAdmin) ...[
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Experience'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentCyan,
-                foregroundColor: AppColors.bgPrimary,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
+
 
 // ─── Experience Card ───────────────────────────────────────────────────────────
 class _ExperienceCard extends StatefulWidget {
@@ -168,23 +179,191 @@ class _ExperienceCardState extends State<_ExperienceCard> {
     final String description = item['description'] ?? '';
     final List<String> highlights =
         List<String>.from(item['highlights'] ?? []);
+    final List<String> tags = List<String>.from(item['tags'] ?? []);
     final String type = item['type'] ?? 'Full-time';
 
     final Color accent = AppColors.accentCyan;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 0),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Timeline dot + line
-            Column(
+      padding: const EdgeInsets.only(bottom: 28, left: 32),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── The Card Content (Determines Stack Size) ───────────────────────
+          MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _hovered ? AppColors.bgCardHover : AppColors.bgCard,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _hovered ? accent : AppColors.border,
+                ),
+                boxShadow: _hovered
+                    ? [
+                        BoxShadow(
+                            color: accent.withValues(alpha: 0.1),
+                            blurRadius: 20)
+                      ]
+                    : [],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row: role + period
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title,
+                                style: AppTextStyles.titleMedium.copyWith(
+                                    color: AppColors.textPrimary)),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                ShaderMask(
+                                  shaderCallback: (b) =>
+                                      AppColors.accentGradient
+                                          .createShader(b),
+                                  child: Text(company,
+                                      style: AppTextStyles.bodyMedium
+                                          .copyWith(
+                                              color: Colors.white,
+                                              fontWeight:
+                                                  FontWeight.w600)),
+                                ),
+                                if (location.isNotEmpty) ...[
+                                  Text(' · ',
+                                      style: AppTextStyles.labelMedium),
+                                  Text(location,
+                                      style: AppTextStyles.labelMedium),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: accent.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(type,
+                                style: AppTextStyles.labelMedium
+                                    .copyWith(color: accent)),
+                          ),
+                          if (period.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(period,
+                                style: AppTextStyles.labelMedium
+                                    .copyWith(
+                                        color: AppColors.textSecondary)),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(description, style: AppTextStyles.bodyMedium),
+                  ],
+
+                  if (highlights.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ...highlights.map((h) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.check_circle_outline,
+                                  size: 14, color: accent),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                  child: Text(h,
+                                      style: AppTextStyles.bodyMedium
+                                          .copyWith(fontSize: 13))),
+                            ],
+                          ),
+                        )),
+                  ],
+
+                  // Tech tags
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: tags
+                          .map((tag) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: accent.withValues(alpha: 0.35)),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: AppTextStyles.labelMedium
+                                      .copyWith(color: accent, fontSize: 11),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ],
+
+                  // Admin delete button
+                  if (widget.isAdmin) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          await FirebaseFirestore.instance
+                              .collection('experience')
+                              .doc(item['id'])
+                              .delete();
+                        },
+                        icon: const Icon(Icons.delete_outline,
+                            size: 14, color: Colors.redAccent),
+                        label: const Text('Remove',
+                            style: TextStyle(
+                                color: Colors.redAccent, fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // ── The Timeline Line & Dot (Positioned Left) ──────────────────────
+          Positioned(
+            left: -24,
+            top: 0,
+            bottom: -28,
+            child: Column(
               children: [
+                // Timeline Dot
                 Container(
-                  width: 14,
-                  height: 14,
-                  margin: const EdgeInsets.only(top: 20),
+                  width: 12,
+                  height: 12,
+                  margin: const EdgeInsets.only(top: 24),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: accent,
@@ -194,6 +373,7 @@ class _ExperienceCardState extends State<_ExperienceCard> {
                     ],
                   ),
                 ),
+                // Timeline vertical line connecting items
                 if (!widget.isLast)
                   Expanded(
                     child: Container(
@@ -201,154 +381,13 @@ class _ExperienceCardState extends State<_ExperienceCard> {
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       color: AppColors.border,
                     ),
-                  ),
+                  )
+                else
+                  const Spacer(),
               ],
             ),
-            const SizedBox(width: 20),
-
-            // Card
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 28),
-                child: MouseRegion(
-                  onEnter: (_) => setState(() => _hovered = true),
-                  onExit: (_) => setState(() => _hovered = false),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: _hovered ? AppColors.bgCardHover : AppColors.bgCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: _hovered ? accent : AppColors.border,
-                      ),
-                      boxShadow: _hovered
-                          ? [
-                              BoxShadow(
-                                  color: accent.withValues(alpha: 0.1),
-                                  blurRadius: 20)
-                            ]
-                          : [],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top row: role + period
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(title,
-                                      style: AppTextStyles.titleMedium.copyWith(
-                                          color: AppColors.textPrimary)),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      ShaderMask(
-                                        shaderCallback: (b) =>
-                                            AppColors.accentGradient
-                                                .createShader(b),
-                                        child: Text(company,
-                                            style: AppTextStyles.bodyMedium
-                                                .copyWith(
-                                                    color: Colors.white,
-                                                    fontWeight:
-                                                        FontWeight.w600)),
-                                      ),
-                                      if (location.isNotEmpty) ...[
-                                        Text(' · ',
-                                            style: AppTextStyles.labelMedium),
-                                        Text(location,
-                                            style: AppTextStyles.labelMedium),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: accent.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                        color: accent.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(type,
-                                      style: AppTextStyles.labelMedium
-                                          .copyWith(color: accent)),
-                                ),
-                                if (period.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(period,
-                                      style: AppTextStyles.labelMedium
-                                          .copyWith(
-                                              color: AppColors.textSecondary)),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        if (description.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Text(description, style: AppTextStyles.bodyMedium),
-                        ],
-
-                        if (highlights.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          ...highlights.map((h) => Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(Icons.check_circle_outline,
-                                        size: 14, color: accent),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                        child: Text(h,
-                                            style: AppTextStyles.bodyMedium
-                                                .copyWith(fontSize: 13))),
-                                  ],
-                                ),
-                              )),
-                        ],
-
-                        // Admin delete button
-                        if (widget.isAdmin) ...[
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () async {
-                                await FirebaseFirestore.instance
-                                    .collection('experience')
-                                    .doc(item['id'])
-                                    .delete();
-                              },
-                              icon: const Icon(Icons.delete_outline,
-                                  size: 14, color: Colors.redAccent),
-                              label: const Text('Remove',
-                                  style: TextStyle(
-                                      color: Colors.redAccent, fontSize: 12)),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     ).animate().fadeIn(duration: 500.ms).slideX(begin: -0.05, end: 0);
   }
