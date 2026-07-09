@@ -33,4 +33,6 @@ flutter:
   assets:
     - assets/images/
     - assets/images/resturent_management/
+    - assets/images/gps/
+    - assets/images/TODO/
     - assets/CV/

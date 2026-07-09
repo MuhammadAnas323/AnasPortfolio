@@ -420,9 +420,6 @@ class _ProjectBody extends StatelessWidget {
                 _ActionButton(label: 'Live Demo', icon: Icons.open_in_new_rounded, color: accentColor, filled: true, url: project.liveUrl!),
               if (project.figmaUrl != null)
                 _ActionButton(label: 'Figma Design', icon: Icons.design_services_rounded, color: AppColors.accentTeal, url: project.figmaUrl!),
-              if (project.githubUrl == null && project.liveUrl == null && project.figmaUrl == null)
-                Text('Source code available on request.',
-                    style: AppTextStyles.bodyMedium),
             ],
           ),
         ),
@@ -431,7 +428,6 @@ class _ProjectBody extends StatelessWidget {
   }
 
   List<String> _getScreenshots(String projectId) {
-    // Map project IDs to their asset image lists
     const Map<String, List<String>> projectScreenshots = {
       'restaurant-management': [
         'assets/images/resturent_management/Dashboared.png',
@@ -443,6 +439,38 @@ class _ProjectBody extends StatelessWidget {
         'assets/images/resturent_management/CashManagement.png',
         'assets/images/resturent_management/Reports.png',
         'assets/images/resturent_management/Setting.png',
+      ],
+      'geo-attend': [
+        'assets/images/gps/Screenshot 2026-07-09 153458.png',
+        'assets/images/gps/Screenshot 2026-07-09 153518.png',
+        'assets/images/gps/Screenshot 2026-07-09 153546.png',
+        'assets/images/gps/Screenshot 2026-07-09 153601.png',
+        'assets/images/gps/Screenshot 2026-07-09 153623.png',
+        'assets/images/gps/Screenshot 2026-07-09 153634.png',
+        'assets/images/gps/Screenshot 2026-07-09 153707.png',
+        'assets/images/gps/Screenshot 2026-07-09 153733.png',
+        'assets/images/gps/Screenshot 2026-07-09 153744.png',
+        'assets/images/gps/Screenshot 2026-07-09 153828.png',
+        'assets/images/gps/Screenshot 2026-07-09 153848.png',
+        'assets/images/gps/Screenshot 2026-07-09 153903.png',
+        'assets/images/gps/Screenshot 2026-07-09 153921.png',
+        'assets/images/gps/Screenshot 2026-07-09 153935.png',
+      ],
+      'todo-app': [
+        'assets/images/TODO/Screenshot 2026-07-09 160918.png',
+        'assets/images/TODO/Screenshot 2026-07-09 160933.png',
+        'assets/images/TODO/Screenshot 2026-07-09 160942.png',
+        'assets/images/TODO/Screenshot 2026-07-09 160952.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161000.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161020.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161032.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161046.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161058.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161107.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161116.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161124.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161136.png',
+        'assets/images/TODO/Screenshot 2026-07-09 161142.png',
       ],
     };
     return projectScreenshots[projectId] ?? [];

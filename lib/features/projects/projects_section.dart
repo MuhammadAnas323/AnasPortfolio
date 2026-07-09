@@ -80,9 +80,9 @@ class ProjectsSection extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
-        crossAxisSpacing: 24,
-        mainAxisSpacing: 24,
-        mainAxisExtent: 380,
+        crossAxisSpacing: 17,
+        mainAxisSpacing: 17,
+        mainAxisExtent: 266,
       ),
       itemCount: displayProjects.length,
       itemBuilder: (ctx, i) => _ProjectCard(
@@ -188,15 +188,15 @@ class _ProjectCardState extends State<_ProjectCard> {
                     // ── Top image / accent bar ────────────────────────────
                     if (widget.project.imageUrl.isNotEmpty)
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
                         child: widget.project.imageUrl.startsWith('http')
                             ? Image.network(
                                 widget.project.imageUrl,
                                 width: double.infinity,
-                                height: 120,
+                                height: 84,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Container(
-                                  height: 4,
+                                  height: 3,
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [_accentColor, _accentColor.withValues(alpha: 0.4)],
@@ -207,12 +207,12 @@ class _ProjectCardState extends State<_ProjectCard> {
                             : Image.asset(
                                 widget.project.imageUrl,
                                 width: double.infinity,
-                                height: 120,
+                                height: 84,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Container(
-                                  height: 120,
+                                  height: 84,
                                   color: _accentColor.withValues(alpha: 0.08),
-                                  child: Center(child: Icon(Icons.image_rounded, color: _accentColor, size: 40)),
+                                  child: Center(child: Icon(Icons.image_rounded, color: _accentColor, size: 28)),
                                 ),
                               ),
                       )
@@ -230,19 +230,18 @@ class _ProjectCardState extends State<_ProjectCard> {
                     // ── Card body ─────────────────────────────────────────
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Icon + category badge
                             Row(
                               children: [
                                 Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 31,
+                                  height: 31,
                                   decoration: BoxDecoration(
                                     color: _accentColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(7),
                                     border: Border.all(
                                       color: _accentColor.withValues(alpha: 0.3),
                                     ),
@@ -250,12 +249,12 @@ class _ProjectCardState extends State<_ProjectCard> {
                                   child: Icon(
                                     _getIcon(widget.project.category),
                                     color: _accentColor,
-                                    size: 22,
+                                    size: 15,
                                   ),
                                 ),
                                 const Spacer(),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: AppColors.bgPrimary,
                                     borderRadius: BorderRadius.circular(4),
@@ -264,16 +263,16 @@ class _ProjectCardState extends State<_ProjectCard> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 7),
 
                             // Title
                             Text(
                               widget.project.title,
-                              style: AppTextStyles.headlineSmall.copyWith(fontSize: 18),
+                              style: AppTextStyles.headlineSmall.copyWith(fontSize: 13),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
 
                             // Tagline
                             Text(
@@ -287,8 +286,8 @@ class _ProjectCardState extends State<_ProjectCard> {
 
                             // Tech chip row
                             Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
+                              spacing: 4,
+                              runSpacing: 4,
                               children: (widget.project.tools.isNotEmpty
                                       ? widget.project.tools
                                       : widget.project.techStack)
@@ -297,7 +296,7 @@ class _ProjectCardState extends State<_ProjectCard> {
                                   .toList(),
                             ),
 
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 7),
 
                             // View Details row
                             Row(
@@ -389,7 +388,7 @@ class _TechChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
@@ -399,16 +398,12 @@ class _TechChip extends StatelessWidget {
         label,
         style: AppTextStyles.labelMedium.copyWith(
           color: color.withValues(alpha: 0.9),
-          fontSize: 11,
+          fontSize: 8,
         ),
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Section Header
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String label;
