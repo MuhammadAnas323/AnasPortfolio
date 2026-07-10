@@ -110,8 +110,49 @@ class PortfolioData {
       tools: ['Figma', 'VS Code', 'Firebase Console'],
       figmaUrl: 'https://www.figma.com/design/Lulxy63OQ6lU17SWUoNMP7/Todo-App--Community-?node-id=0-1&p=f&t=dg5EU1awbAXDrLqA-0',
       category: 'Mobile App',
-      accentColorHex: '#4F8EF7',
+      accentColorHex: '#22D3EE',
       imageUrl: 'assets/images/TODO/Screenshot 2026-07-09 160918.png',
+      imagePublicId: 'local',
+    ),
+
+    // ── FitLife Ecosystem — Digital Health & Fitness Platform ──────────────
+    ProjectModel(
+      id: 'fitlife-health',
+      title: 'FitLife Ecosystem — Digital Health & Fitness Platform',
+      tagline: 'A modern, high-fidelity digital health ecosystem comprising a mobile app for end-users and a centralized web-based administration dashboard.',
+      description:
+          'FitLife is a modern, high-fidelity digital health and fitness ecosystem comprising two major components: a mobile application for end-users and a centralized web-based administration dashboard. This platform empowers users to transform their bodies, improve their lifestyles, and adopt sustainable nutrition, while equipping administrators with real-time data insights and robust user management capabilities.\n\nMy Role:\nDesigned the complete UI/UX in Figma and developed the full Flutter mobile application with Firebase backend integration, including social authentication, health profile tracking with BMI calculation, and real-time synchronization with the admin dashboard for content management and user analytics.',
+      problemStatement:
+          'Health and fitness platforms often use a one-size-fits-all approach to diet and nutrition, failing to account for individual body composition, daily routines, and health goals — while administrators lack real-time visibility into user engagement and platform growth.',
+      solution:
+          'Built a dual-platform ecosystem with a Flutter mobile app for personalized health tracking and a responsive admin dashboard for real-time analytics. Users receive custom diet plans based on their physiological profile, while administrators gain data-driven insights through dynamic charts and complete user moderation capabilities.',
+      techStack: [
+        'Flutter',
+        'Dart',
+        'Firebase',
+        'Firebase Authentication',
+        'Riverpod',
+        'Google Sign-In',
+        'Apple Sign-In',
+        'Facebook Login',
+        'Clean Architecture',
+        'Figma',
+      ],
+      features: [
+        '📊 Interactive Onboarding: A guided presentation upon first launch highlighting core benefits — Transformation, Tailored Plans, and Motivation — ensuring users understand the platform\'s value before registration.',
+        '🔐 Multi-Platform Authentication: Standard email/password registration alongside single-tap social SSO via Google, Facebook, and Apple — plus a self-service password recovery flow for lost credentials.',
+        '🧬 Physiological Health Profile: Users build a complete health profile with body attributes for accurate BMI (Body Mass Index) calculation, enabling truly personalized nutrition and diet plan recommendations.',
+        '📋 Customized Diet Plans: Moving away from generic templates, every user receives a custom diet plan aligned with their unique health goals, daily routine, and body composition — focused on sustainable nutrition and hormone balance.',
+        '📈 Real-Time Admin Analytics: A centralized web dashboard featuring dynamic line charts with daily, weekly, monthly, and yearly statistical breakdowns of user growth (New Users vs. Total Users) for data-driven business decisions.',
+        '👥 User Management & Moderation: Complete user directory grid with search and filtering tools. Administrators can instantly toggle active, inactive, or blocked states and delete accounts that violate guidelines — ensuring a safe community environment.',
+        '📝 Content Management System: Admins can upload new nutritional assets and diet plans through the content module, which are instantly synchronized and pushed live to the mobile application users in real time.',
+        '🎫 Customer Support Ticketing: A dedicated support interface that allows administrators to efficiently manage, track, and resolve user inquiries and support requests through an organized ticketing system.',
+      ],
+      tools: ['Figma', 'VS Code', 'Firebase Console'],
+      figmaUrl: 'https://www.figma.com/design/xDRaaWmSn3P4LEQEyVy7XK/Fitlife?node-id=0-1&t=T3RfkPvLyKL2ScQG-1',
+      category: 'Health & Fitness',
+      accentColorHex: '#10B981',
+      imageUrl: 'assets/images/Fitlife/Screenshot 2026-07-10 140129.png',
       imagePublicId: 'local',
     ),
   ];

@@ -335,34 +335,21 @@ class _NavAvatar extends ConsumerWidget {
     final rawPhoto = (personalInfo['photoUrl'] ?? '').toString();
     final photoUrl = rawPhoto.isEmpty ? null : rawPhoto;
 
+    final avatarImage = photoUrl != null
+        ? NetworkImage(photoUrl) as ImageProvider
+        : const AssetImage('assets/images/Profile.jpeg') as ImageProvider;
+
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.accentCyan, width: 2),
-        image: photoUrl != null
-            ? DecorationImage(
-                image: NetworkImage(photoUrl),
-                fit: BoxFit.cover,
-              )
-            : null,
-        gradient: photoUrl == null
-            ? AppColors.accentGradient
-            : null,
+        image: DecorationImage(
+          image: avatarImage,
+          fit: BoxFit.cover,
+        ),
       ),
-      child: photoUrl == null
-          ? const Center(
-              child: Text(
-                'A',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-            )
-          : null,
     );
   }
 }

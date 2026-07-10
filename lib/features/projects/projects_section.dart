@@ -75,19 +75,44 @@ class ProjectsSection extends ConsumerWidget {
   }
 
   Widget _buildGrid(BuildContext context, List<ProjectModel> displayProjects, bool isLoggedIn, bool isMobile, bool isTablet) {
+    final width = MediaQuery.of(context).size.width;
+
+    int crossAxisCount;
+    double mainAxisExtent;
+    double imageHeight;
+
+    if (width < 768) {
+      crossAxisCount = 1;
+      mainAxisExtent = 280;
+      imageHeight = 140;
+    } else if (width < 900) {
+      crossAxisCount = 2;
+      mainAxisExtent = 260;
+      imageHeight = 100;
+    } else if (width < 1100) {
+      crossAxisCount = 2;
+      mainAxisExtent = 250;
+      imageHeight = 92;
+    } else {
+      crossAxisCount = 4;
+      mainAxisExtent = 245;
+      imageHeight = 80;
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
-        crossAxisSpacing: 17,
-        mainAxisSpacing: 17,
-        mainAxisExtent: 266,
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        mainAxisExtent: mainAxisExtent,
       ),
       itemCount: displayProjects.length,
       itemBuilder: (ctx, i) => _ProjectCard(
         project: displayProjects[i],
         isAdmin: isLoggedIn,
+        imageHeight: imageHeight,
         onTap: () => context.push('/project/${displayProjects[i].id}'),
         onEdit: isLoggedIn
             ? () => showDialog(
@@ -111,11 +136,13 @@ class _ProjectCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback? onEdit;
   final bool isAdmin;
+  final double imageHeight;
   const _ProjectCard({
     required this.project,
     required this.onTap,
     this.onEdit,
     this.isAdmin = false,
+    this.imageHeight = 84,
   });
 
   @override
@@ -193,7 +220,7 @@ class _ProjectCardState extends State<_ProjectCard> {
                             ? Image.network(
                                 widget.project.imageUrl,
                                 width: double.infinity,
-                                height: 84,
+                                height: widget.imageHeight,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Container(
                                   height: 3,
@@ -207,10 +234,10 @@ class _ProjectCardState extends State<_ProjectCard> {
                             : Image.asset(
                                 widget.project.imageUrl,
                                 width: double.infinity,
-                                height: 84,
+                                height: widget.imageHeight,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Container(
-                                  height: 84,
+                                  height: widget.imageHeight,
                                   color: _accentColor.withValues(alpha: 0.08),
                                   child: Center(child: Icon(Icons.image_rounded, color: _accentColor, size: 28)),
                                 ),
@@ -234,7 +261,7 @@ class _ProjectCardState extends State<_ProjectCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                                Row(
                               children: [
                                 Container(
                                   width: 31,
@@ -252,14 +279,21 @@ class _ProjectCardState extends State<_ProjectCard> {
                                     size: 15,
                                   ),
                                 ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.bgPrimary,
-                                    borderRadius: BorderRadius.circular(4),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgPrimary,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      widget.project.category,
+                                      style: AppTextStyles.labelMedium,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                  child: Text(widget.project.category, style: AppTextStyles.labelMedium),
                                 ),
                               ],
                             ),
