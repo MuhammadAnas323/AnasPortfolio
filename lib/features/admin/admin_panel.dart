@@ -23,7 +23,7 @@ class _AdminPanelState extends ConsumerState<AdminPanel> {
   Future<void> _pickAndUploadCv() async {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please update the CV in assets/cv/AnasCV.pdf manually.')),
+        const SnackBar(content: Text('Please update the CV in assets/CV/Muhammad_Anas_Flutter_Developer_CV(1).pdf manually.')),
       );
     }
   }
@@ -31,7 +31,7 @@ class _AdminPanelState extends ConsumerState<AdminPanel> {
   Future<void> _pickAndUploadPhoto() async {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please update the image in assets/images/profile.jpg manually.')),
+        const SnackBar(content: Text('Please update the image in assets/images/Anas.png manually.')),
       );
     }
   }

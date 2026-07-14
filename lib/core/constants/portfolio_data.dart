@@ -205,7 +205,18 @@ class PortfolioData {
     'linkedin': 'https://linkedin.com/in/anas',
     'location': 'Pakistan 🇵🇰',
     'bio':
-        'I am a professional Flutter Developer specializing in cross-platform mobile app development using Dart and the Flutter framework. Experienced in designing robust state management (Riverpod/Provider) architecture, seamless REST API integration, and Firebase backends. I focus on premium UI/UX, clean architecture, performance optimization, and writing clean, scalable code to deliver high-impact production apps.',
+        'Every great application starts with an idea. My job is to transform that idea into a product people love to use.\n\n'
+        "Hi, I'm Muhammad Anas, a Flutter & Dart Developer passionate about building scalable, high-performance mobile applications that solve real business problems.\n\n"
+        'My journey into software development was not simply about learning a programming language — it was about understanding how technology can improve businesses and simplify people\u2019s lives. Every project I build teaches me something new, and every challenge pushes me to become a better engineer.\n\n'
+        'I believe that writing code is only a small part of software development. Understanding user behavior, business goals, application architecture, and long-term scalability is what truly separates a developer from a software engineer.\n\n'
+        'Over time, I have developed expertise in building cross-platform applications using Flutter, integrating REST APIs, Firebase, and implementing clean architectures with Riverpod and Provider. I enjoy creating applications that are not only visually appealing but also fast, maintainable, secure, and production-ready.\n\n'
+        'What excites me the most is solving complex problems. Whether it is optimizing application performance, designing scalable architectures, integrating cloud services, or creating intuitive user experiences, I enjoy finding efficient solutions that make a real difference.\n\n'
+        'I approach every project with one simple philosophy:\n\n'
+        'Build software that creates value — not just software that works.\n\n'
+        'I continuously explore new technologies, improve my development workflow, and stay updated with modern software engineering practices because I believe learning never stops in this industry.\n\n'
+        'When I work with clients or development teams, my focus is on clear communication, clean code, timely delivery, and long-term maintainability. My goal is not just to complete projects — it is to build products that businesses can confidently grow with.\n\n'
+        "If you're looking for someone who takes ownership, thinks beyond the code, and genuinely cares about delivering quality software, I would be glad to be part of your journey.\n\n"
+        "Let's build something exceptional together.",
     'yearsOfExperience': '1+',
     'projectsCompleted': '10+',
     'happyClients': '5+',

@@ -337,7 +337,7 @@ class _NavAvatar extends ConsumerWidget {
 
     final avatarImage = photoUrl != null
         ? NetworkImage(photoUrl) as ImageProvider
-        : const AssetImage('assets/images/Profile.jpeg') as ImageProvider;
+        : const AssetImage('assets/images/Anas.png') as ImageProvider;
 
     return Container(
       width: 36,

@@ -42,7 +42,7 @@ class AnasPortfolioApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Anas — Flutter Developer',
+      title: 'Muhammad Anas | Flutter Developer | Cross-Platform Mobile App Developer',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: _router,

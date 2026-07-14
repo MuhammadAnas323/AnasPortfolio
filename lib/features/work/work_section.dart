@@ -12,7 +12,7 @@ const _defaultExperience = [
     'id': '_xove',
     'order': 0,
     'title': 'Flutter Developer',
-    'company': 'Xove Craft Technologies',
+    'company': 'XovaCraft Tech',
     'period': 'June 2026 – Present',
     'location': 'On-site',
     'type': 'Full-time',

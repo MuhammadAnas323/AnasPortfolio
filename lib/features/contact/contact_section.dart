@@ -11,8 +11,11 @@ import '../../utils/responsive_layout.dart';
 // ── Replace with your Formspree form ID from https://formspree.io ──────────
 const _formspreeEndpoint = 'https://formspree.io/f/YOUR_FORM_ID';
 
+// ── Optional: Replace with your Calendly scheduling link ───────────────────
+const _calendlyUrl = 'https://calendly.com/YOUR_USERNAME';
+
 const String _myEmail = 'anasktk2125@gmail.com';
-const String _myWhatsApp = '923241788391'; // international format no +
+const String _myWhatsApp = '923241788391';
 
 class ContactSection extends StatefulWidget {
   final GlobalKey sectionKey;
@@ -73,8 +76,7 @@ class _ContactSectionState extends State<ContactSection> {
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                'Message could not be sent. Please try emailing directly.'),
+            content: Text('Message could not be sent. Please try emailing directly.'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -84,14 +86,12 @@ class _ContactSectionState extends State<ContactSection> {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       key: widget.sectionKey,
       color: AppColors.bgSurface,
       child: SectionWrapper(
         child: Column(
           children: [
-            // ── Header ──────────────────────────────────────────────────────
             Column(
               children: [
                 Text('// get in touch', style: AppTextStyles.codeStyle),
@@ -105,18 +105,30 @@ class _ContactSectionState extends State<ContactSection> {
                   style: AppTextStyles.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentCyan.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.accentCyan.withValues(alpha: 0.15)),
+                  ),
+                  child: Text(
+                    'I typically respond within 24 hours',
+                    style: AppTextStyles.labelMedium.copyWith(color: AppColors.accentCyan, fontSize: 11),
+                  ),
+                ),
               ],
             ).animate().fadeIn(duration: 600.ms),
 
             const SizedBox(height: 48),
 
-            // ── Quick contact buttons ────────────────────────────────────────
             Wrap(
               spacing: 16,
               runSpacing: 12,
               alignment: WrapAlignment.center,
               children: [
-                _QuickContactCard(
+                _ContactCard(
                   icon: Icons.email_rounded,
                   label: 'Email Me',
                   subtitle: _myEmail,
@@ -126,7 +138,7 @@ class _ContactSectionState extends State<ContactSection> {
                     if (await canLaunchUrl(uri)) await launchUrl(uri);
                   },
                 ),
-                _QuickContactCard(
+                _ContactCard(
                   icon: Icons.chat_rounded,
                   label: 'WhatsApp',
                   subtitle: '+92 324 1788391',
@@ -139,12 +151,23 @@ class _ContactSectionState extends State<ContactSection> {
                     }
                   },
                 ),
+                _ContactCard(
+                  icon: Icons.calendar_today_rounded,
+                  label: 'Schedule a Call',
+                  subtitle: 'Pick a time that works',
+                  color: const Color(0xFF9C6FFF),
+                  onTap: () async {
+                    final uri = Uri.parse(_calendlyUrl);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
               ],
             ).animate().fadeIn(delay: 100.ms, duration: 600.ms),
 
             const SizedBox(height: 48),
 
-            // ── Contact form ─────────────────────────────────────────────────
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: _submitted
@@ -161,53 +184,61 @@ class _ContactSectionState extends State<ContactSection> {
 
             const SizedBox(height: 64),
 
-            // ── Social links row ─────────────────────────────────────────────
-            Wrap(
-              spacing: 16,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
+            Column(
               children: [
-                _SocialLink(
-                  icon: Icons.code_rounded,
-                  label: 'GitHub',
-                  url: 'https://github.com/anas',
-                ),
-                _SocialLink(
-                  icon: Icons.work_rounded,
-                  label: 'LinkedIn',
-                  url: 'https://linkedin.com/in/anas',
-                ),
-                _SocialLink(
-                  icon: Icons.email_rounded,
-                  label: 'Email',
-                  url: 'mailto:$_myEmail',
-                ),
-                _SocialLink(
-                  icon: Icons.chat_rounded,
-                  label: 'WhatsApp',
-                  url: 'https://wa.me/923241788391?text=${Uri.encodeComponent("Hi Anas! I saw your portfolio and I'd like to connect.")}',
-                  color: const Color(0xFF25D366),
-                ),
-                _SocialLink(
-                  icon: Icons.facebook_rounded,
-                  label: 'Facebook',
-                  url: 'https://facebook.com/anas',
-                  color: const Color(0xFF1877F2),
-                ),
-                _SocialLink(
-                  icon: Icons.music_note_rounded,
-                  label: 'TikTok',
-                  url: 'https://tiktok.com/@anas',
-                  color: const Color(0xFFFF0050),
+                Text('Find me on', style: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted)),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _SocialLink(
+                      label: 'GitHub',
+                      icon: Icons.code_rounded,
+                      url: 'https://github.com/anas',
+                      isPrimary: true,
+                    ),
+                    _SocialLink(
+                      label: 'LinkedIn',
+                      icon: Icons.work_rounded,
+                      url: 'https://linkedin.com/in/anas',
+                      isPrimary: true,
+                    ),
+                    _SocialLink(
+                      label: 'Email',
+                      icon: Icons.email_rounded,
+                      url: 'mailto:$_myEmail',
+                    ),
+                    _SocialLink(
+                      label: 'WhatsApp',
+                      icon: Icons.chat_rounded,
+                      url: 'https://wa.me/923241788391?text=${Uri.encodeComponent("Hi Anas! I saw your portfolio and I'd like to connect.")}',
+                      color: const Color(0xFF25D366),
+                    ),
+                    _SocialLink(
+                      label: 'Facebook',
+                      icon: Icons.facebook_rounded,
+                      url: 'https://facebook.com/anas',
+                      color: const Color(0xFF1877F2),
+                      deEmphasized: true,
+                    ),
+                    _SocialLink(
+                      label: 'TikTok',
+                      icon: Icons.music_note_rounded,
+                      url: 'https://tiktok.com/@anas',
+                      color: const Color(0xFFFF0050),
+                      deEmphasized: true,
+                    ),
+                  ],
                 ),
               ],
             ).animate().fadeIn(delay: 400.ms, duration: 600.ms),
 
             const SizedBox(height: 48),
 
-            // Footer
             Text(
-              '© 2024 Muhammad Anas · Built with Flutter 💙',
+              '© 2024 Muhammad Anas · Built with Flutter',
               style: AppTextStyles.labelMedium,
             ),
           ],
@@ -217,15 +248,13 @@ class _ContactSectionState extends State<ContactSection> {
   }
 }
 
-// ── Quick Contact Card ────────────────────────────────────────────────────────
-
-class _QuickContactCard extends StatefulWidget {
+class _ContactCard extends StatefulWidget {
   final IconData icon;
   final String label;
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
-  const _QuickContactCard({
+  const _ContactCard({
     required this.icon,
     required this.label,
     required this.subtitle,
@@ -234,10 +263,10 @@ class _QuickContactCard extends StatefulWidget {
   });
 
   @override
-  State<_QuickContactCard> createState() => _QuickContactCardState();
+  State<_ContactCard> createState() => _ContactCardState();
 }
 
-class _QuickContactCardState extends State<_QuickContactCard> {
+class _ContactCardState extends State<_ContactCard> {
   bool _hovered = false;
 
   @override
@@ -252,20 +281,23 @@ class _QuickContactCardState extends State<_QuickContactCard> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
           decoration: BoxDecoration(
-            color: _hovered
-                ? widget.color.withValues(alpha: 0.1)
-                : AppColors.bgCard,
+            gradient: _hovered
+                ? LinearGradient(
+                    colors: [
+                      widget.color.withValues(alpha: 0.08),
+                      AppColors.bgCard,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : AppColors.cardGradient,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _hovered ? widget.color : AppColors.border,
               width: 1.5,
             ),
             boxShadow: _hovered
-                ? [
-                    BoxShadow(
-                        color: widget.color.withValues(alpha: 0.2),
-                        blurRadius: 20)
-                  ]
+                ? [BoxShadow(color: widget.color.withValues(alpha: 0.15), blurRadius: 20)]
                 : [],
           ),
           child: Row(
@@ -285,12 +317,10 @@ class _QuickContactCardState extends State<_QuickContactCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(widget.label,
-                      style: AppTextStyles.titleMedium
-                          .copyWith(color: AppColors.textPrimary)),
+                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary)),
                   const SizedBox(height: 2),
                   Text(widget.subtitle,
-                      style: AppTextStyles.labelMedium
-                          .copyWith(color: AppColors.textSecondary)),
+                      style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSecondary)),
                 ],
               ),
             ],
@@ -300,8 +330,6 @@ class _QuickContactCardState extends State<_QuickContactCard> {
     );
   }
 }
-
-// ── Contact Form ──────────────────────────────────────────────────────────────
 
 class _ContactForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
@@ -327,7 +355,7 @@ class _ContactForm extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
@@ -339,9 +367,8 @@ class _ContactForm extends StatelessWidget {
             Text('Send a Message', style: AppTextStyles.headlineSmall),
             const SizedBox(height: 4),
             Text(
-              'Fill in the form and your email client will open automatically.',
-              style: AppTextStyles.labelMedium
-                  .copyWith(color: AppColors.textSecondary),
+              'Fill in the form and I\'ll get back to you within 24 hours.',
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             if (!isMobile)
@@ -396,7 +423,7 @@ class _ContactForm extends StatelessWidget {
                       ),
                     )
                   : GradientButton(
-                      label: 'Send via Email',
+                      label: 'Send Message',
                       icon: Icons.send_rounded,
                       onPressed: onSubmit,
                     ),
@@ -457,7 +484,7 @@ class _SuccessState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(48),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.accentCyan.withValues(alpha: 0.3)),
       ),
@@ -473,10 +500,10 @@ class _SuccessState extends StatelessWidget {
             child: const Icon(Icons.check_rounded, color: Colors.black, size: 36),
           ),
           const SizedBox(height: 20),
-          Text("Email Client Opened!", style: AppTextStyles.headlineSmall),
+          Text('Message Sent!', style: AppTextStyles.headlineSmall),
           const SizedBox(height: 8),
           Text(
-            "Your email client should have opened. Send the email and I'll get back to you within 24 hours!",
+            "Thanks for reaching out! I'll get back to you within 24 hours.",
             style: AppTextStyles.bodyMedium,
             textAlign: TextAlign.center,
           ),
@@ -484,23 +511,27 @@ class _SuccessState extends StatelessWidget {
       ),
     )
         .animate()
-        .scale(
-            begin: const Offset(0.8, 0.8),
-            end: const Offset(1, 1),
-            duration: 400.ms)
+        .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 400.ms)
         .fadeIn(duration: 400.ms);
   }
 }
 
-// ── Social Link Button ────────────────────────────────────────────────────────
-
 class _SocialLink extends StatefulWidget {
-  final IconData icon;
   final String label;
+  final IconData icon;
   final String url;
   final Color? color;
-  const _SocialLink(
-      {required this.icon, required this.label, required this.url, this.color});
+  final bool isPrimary;
+  final bool deEmphasized;
+
+  const _SocialLink({
+    required this.label,
+    required this.icon,
+    required this.url,
+    this.color,
+    this.isPrimary = false,
+    this.deEmphasized = false,
+  });
 
   @override
   State<_SocialLink> createState() => _SocialLinkState();
@@ -514,6 +545,9 @@ class _SocialLinkState extends State<_SocialLink> {
 
   @override
   Widget build(BuildContext context) {
+    final double height = widget.isPrimary ? 44 : (widget.deEmphasized ? 32 : 38);
+    final double iconSize = widget.isPrimary ? 20 : (widget.deEmphasized ? 14 : 16);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -527,25 +561,31 @@ class _SocialLinkState extends State<_SocialLink> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          height: height,
+          padding: EdgeInsets.symmetric(horizontal: widget.isPrimary ? 18 : (widget.deEmphasized ? 10 : 14)),
           decoration: BoxDecoration(
             color: _hovered ? accent.withValues(alpha: 0.1) : AppColors.bgCard,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(widget.isPrimary ? 10 : 8),
             border: Border.all(
               color: _hovered ? accent : AppColors.border,
+              width: widget.isPrimary ? 1.5 : 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon,
-                  size: 18,
-                  color: _hovered ? accent : AppColors.textSecondary),
-              const SizedBox(width: 8),
-              Text(widget.label,
+              Icon(widget.icon, size: iconSize, color: _hovered ? accent : AppColors.textSecondary),
+              if (widget.isPrimary || !widget.deEmphasized) ...[
+                const SizedBox(width: 8),
+                Text(
+                  widget.label,
                   style: AppTextStyles.labelMedium.copyWith(
                     color: _hovered ? accent : AppColors.textSecondary,
-                  )),
+                    fontWeight: widget.isPrimary ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: widget.isPrimary ? 12 : 10,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
